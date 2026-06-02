@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import WordReveal from '../components/WordReveal.jsx'
 
 const fade = {
   hidden: { opacity: 0, y: 18 },
@@ -13,7 +14,7 @@ export default function Sobre() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1 className="page-title">Sobre o projeto</h1>
+          <WordReveal className="page-title">Sobre o projeto</WordReveal>
           <p className="page-subtitle">Arquitetura de microsserviços resiliente</p>
         </div>
       </div>

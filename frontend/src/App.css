@@ -37,6 +37,7 @@ body {
   letter-spacing: -0.2px;
 }
 
+/* Dot grid texture */
 body::before {
   content: '';
   position: fixed;
@@ -48,13 +49,66 @@ body::before {
   z-index: 0;
 }
 
+/* ===================== SCROLL PROGRESS ===================== */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--orange);
+  transform-origin: 0%;
+  z-index: 200;
+  pointer-events: none;
+}
+
+/* ===================== AMBIENT BLOBS ===================== */
+.ambient-blobs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+}
+.blob-1 {
+  width: 720px;
+  height: 560px;
+  top: -180px;
+  right: -180px;
+  background: radial-gradient(circle, rgba(236, 112, 0, 0.07) 0%, transparent 72%);
+  animation: blob-drift-1 24s ease-in-out infinite;
+}
+.blob-2 {
+  width: 560px;
+  height: 640px;
+  bottom: -120px;
+  left: -140px;
+  background: radial-gradient(circle, rgba(236, 112, 0, 0.05) 0%, transparent 72%);
+  animation: blob-drift-2 30s ease-in-out infinite;
+}
+@keyframes blob-drift-1 {
+  0%, 100% { transform: translate(0, 0); }
+  33%       { transform: translate(-36px, 48px); }
+  66%       { transform: translate(22px, -26px); }
+}
+@keyframes blob-drift-2 {
+  0%, 100% { transform: translate(0, 0); }
+  33%       { transform: translate(48px, -36px); }
+  66%       { transform: translate(-28px, 32px); }
+}
+
 .shell { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
 
 /* ===================== NAVBAR ===================== */
 .nav {
   position: sticky; top: 0; z-index: 50;
-  backdrop-filter: blur(12px);
-  background: rgba(250, 248, 244, 0.85);
+  backdrop-filter: blur(14px);
+  background: rgba(250, 248, 244, 0.88);
   border-bottom: 1px solid var(--line);
 }
 .nav-inner {
@@ -73,21 +127,55 @@ body::before {
 .brand-mark span { color: white; font-weight: 700; font-size: 14px; letter-spacing: -0.5px; }
 .brand-text { font-weight: 600; font-size: 19px; letter-spacing: -0.5px; }
 
+/* ---- Nav links com underline animado ---- */
 .nav-links { display: flex; gap: 4px; }
 .nav-link {
-  position: relative; text-decoration: none; color: var(--ink-soft);
-  font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 10px;
-  transition: color 0.2s var(--ease), background 0.2s var(--ease), transform 0.15s var(--ease);
-  min-height: 40px; display: inline-flex; align-items: center;
+  position: relative;
+  text-decoration: none;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 10px;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+/* Underline hover animado (cresce da esquerda) */
+.nav-link::before {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 16px;
+  right: 16px;
+  height: 1.5px;
+  background: var(--orange);
+  border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.26s var(--ease);
 }
 @media (hover: hover) and (pointer: fine) {
-  .nav-link:hover { color: var(--ink); background: rgba(236, 112, 0, 0.07); transform: scale(1.04); }
+  .nav-link:hover {
+    color: var(--ink);
+    background: rgba(236, 112, 0, 0.07);
+  }
+  .nav-link:hover::before { transform: scaleX(1); }
 }
 .nav-link:active { transform: scale(0.96); }
 .nav-link.active { color: var(--orange-deep); }
+.nav-link.active::before { display: none; }
+/* Active dot */
 .nav-link.active::after {
-  content: ''; position: absolute; bottom: 2px; left: 50%;
-  width: 5px; height: 5px; background: var(--orange); border-radius: 50%;
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: var(--orange);
+  border-radius: 50%;
   transform: translateX(-50%);
 }
 
@@ -172,7 +260,12 @@ body::before {
   display: flex; align-items: flex-end; justify-content: space-between;
   margin-bottom: 2rem; gap: 1rem;
 }
-.page-title { font-size: clamp(1.9rem, 5vw, 2.8rem); font-weight: 700; letter-spacing: -1.5px; line-height: 1.05; }
+.page-title {
+  font-size: clamp(1.9rem, 5vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  line-height: 1.05;
+}
 .page-subtitle { color: var(--ink-soft); font-size: 15px; margin-top: 8px; font-weight: 500; }
 
 /* ===================== BANNER DE STATUS ===================== */
@@ -189,7 +282,6 @@ body::before {
 @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.4); } }
 
 /* ===================== CARDS DO DASHBOARD ===================== */
-/* perspective no container habilita o tilt 3D dos cards */
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -251,14 +343,18 @@ body::before {
   display: inline-flex; align-items: center; gap: 8px; background: var(--orange); color: white;
   border: none; border-radius: 12px; padding: 11px 20px; font-family: 'Poppins', sans-serif;
   font-size: 14px; font-weight: 600; cursor: pointer;
-  transition: background 0.22s var(--ease), transform 0.15s var(--ease);
+  transition: background 0.22s var(--ease), transform 0.15s var(--ease), box-shadow 0.22s var(--ease);
   min-height: 44px;
 }
 @media (hover: hover) and (pointer: fine) {
-  .btn-refresh:not(:disabled):hover { background: var(--orange-deep); transform: scale(1.04); }
+  .btn-refresh:not(:disabled):hover {
+    background: var(--orange-deep);
+    transform: scale(1.04);
+    box-shadow: 0 0 28px rgba(236, 112, 0, 0.35);
+  }
   .btn-refresh:not(:disabled):hover .refresh-icon { transform: rotate(180deg); }
 }
-.btn-refresh:active { transform: scale(0.96); }
+.btn-refresh:active { transform: scale(0.96); box-shadow: none; }
 .btn-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .spin-icon { display: inline-block; animation: spin 0.7s linear infinite; }
@@ -391,49 +487,47 @@ body::before {
 
 /* ===================== MOBILE ===================== */
 @media (max-width: 640px) {
-  /* Nav: mostra hambúrguer, esconde desktop nav */
   .nav-links { display: none; }
   .nav-user { display: none; }
   .nav-hamburger { display: flex; }
   .nav-inner { padding: 0.85rem 1rem; }
 
-  /* Layout principal */
   .main { padding: 1.5rem 1rem; }
   .footer { padding: 1.25rem 1rem; flex-direction: column; align-items: flex-start; }
 
-  /* Títulos e cabeçalho de página */
   .page-head { flex-direction: column; align-items: flex-start; }
   .page-title { font-size: 1.75rem; letter-spacing: -1px; }
   .page-subtitle { font-size: 14px; }
 
-  /* Cards — coluna única */
   .cards-grid { grid-template-columns: 1fr; gap: 1rem; perspective: none; }
   .summary-grid { grid-template-columns: 1fr; perspective: none; }
   .tech-grid { grid-template-columns: 1fr 1fr; }
 
-  /* Card inner adjustments */
   .card { padding: 1.25rem; }
   .card-value { font-size: 1.6rem; }
   .summary-value { font-size: 1.3rem; }
 
-  /* Transações */
   .txn { padding: 14px 12px; gap: 12px; }
 
-  /* Diagrama de arquitetura em coluna */
   .arch { flex-direction: column; align-items: flex-start; gap: 10px; padding: 1.25rem; }
   .arch-arrow { transform: rotate(90deg); align-self: center; }
   .arch-services { flex-direction: row; flex-wrap: wrap; gap: 6px; }
 
-  /* Status banner */
   .status-banner { font-size: 13px; padding: 12px 14px; }
+
+  /* Desativa blobs em mobile (performance) */
+  .ambient-blobs { display: none; }
 }
 
 /* ===================== PREFERS-REDUCED-MOTION ===================== */
 @media (prefers-reduced-motion: reduce) {
+  .ambient-blobs { display: none; }
+  .scroll-progress { display: none; }
   .brand-mark { transition: none; }
   .card-accent { transition: none; }
   .card { transition: box-shadow 0.15s, border-color 0.15s; }
   .nav-link { transition: color 0.1s, background 0.1s; }
+  .nav-link::before { transition: none; }
   .btn-refresh { transition: background 0.1s; }
   .refresh-icon { transition: none; }
   .status-banner.circuit .status-dot { animation: none; opacity: 1; }
@@ -441,4 +535,5 @@ body::before {
   .ham-line { transition: none; }
   .tech-item { transition: none; }
   .arch-node { transition: none; }
+  .blob { animation: none; }
 }

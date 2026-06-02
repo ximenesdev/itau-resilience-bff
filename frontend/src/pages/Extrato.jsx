@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { transacoes, brl } from '../data.js'
 import TiltCard from '../components/TiltCard.jsx'
 import CountUp from '../components/CountUp.jsx'
+import WordReveal from '../components/WordReveal.jsx'
 
 const list = {
   hidden: { opacity: 0 },
@@ -21,7 +22,7 @@ export default function Extrato() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1 className="page-title">Extrato</h1>
+          <WordReveal className="page-title">Extrato</WordReveal>
           <p className="page-subtitle">Suas últimas movimentações</p>
         </div>
       </div>
