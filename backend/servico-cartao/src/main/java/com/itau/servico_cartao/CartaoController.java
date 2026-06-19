@@ -17,7 +17,6 @@ public class CartaoController {
             "fatura_atual", 2387.50,
             "limite", 15000.00,
             "vencimento", "15/07/2025",
-            "mensagem", "Serviço operacional",
             "status", "ok"
         );
     }
