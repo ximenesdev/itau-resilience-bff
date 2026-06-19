@@ -1,0 +1,132 @@
+spring:
+  application:
+    name: bff
+
+server:
+  port: 8083
+
+# ==============================================================================
+# ACTUATOR — Monitoramento em tempo real
+# ==============================================================================
+# O Actuator expõe endpoints HTTP para inspecionar o estado interno da aplicação.
+# Sem ele, não teríamos como ver o estado dos circuit breakers em tempo real.
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expõe apenas os endpoints necessários (não expor tudo em produção — risco de segurança)
+        # health: estado geral da aplicação (inclui estado dos CBs se habilitado abaixo)
+        # metrics: métricas de desempenho (latência, contagem de chamadas, etc.)
+        # circuitbreakers: estado de cada circuit breaker (CLOSED, OPEN, HALF_OPEN)
+        # circuitbreakerevents: histórico de eventos (falhas, transições de estado)
+        include: health, metrics, circuitbreakers, circuitbreakerevents
+  endpoint:
+    health:
+      # "always" mostra os detalhes de cada componente de saúde para qualquer chamante.
+      # Em produção, usaríamos "when_authorized" para não expor internos publicamente.
+      show-details: always
+  health:
+    circuitbreakers:
+      # Inclui o estado dos circuit breakers no /actuator/health
+      # Com isso, /actuator/health mostra "status: DOWN" quando algum CB está OPEN
+      enabled: true
+
+# ==============================================================================
+# RESILIENCE4J — Configuração dos padrões de resiliência
+# ==============================================================================
+resilience4j:
+
+  # ----------------------------------------------------------------------------
+  # CIRCUIT BREAKER — O "disjuntor" que protege o sistema
+  # ----------------------------------------------------------------------------
+  # Analogia: como o disjuntor elétrico da sua casa.
+  # - CLOSED (fechado): chamadas passam normalmente. O CB monitora resultados.
+  # - OPEN (aberto): circuito "desarmou". Chamadas são BLOQUEADAS imediatamente,
+  #   sem nem tentar chegar ao serviço (poupa recursos e evita cascata de falhas).
+  # - HALF_OPEN (semi-aberto): após waitDurationInOpenState, o CB deixa passar
+  #   um número limitado de chamadas de teste para ver se o serviço se recuperou.
+  circuitbreaker:
+    instances:
+      saldo:
+        # Tipo de janela: COUNT_BASED conta as últimas N chamadas.
+        # TIME_BASED contaria chamadas nos últimos N segundos.
+        slidingWindowType: COUNT_BASED
+
+        # Tamanho da janela: quantas chamadas recentes o CB observa para calcular a taxa de falha.
+        # Ex: com 10, calcula a taxa sobre as últimas 10 chamadas.
+        slidingWindowSize: 10
+
+        # MÍNIMO de chamadas na janela antes de calcular a taxa de falha.
+        # Com 5: após 5 chamadas, se 100% falharem (> 50% threshold), o CB ABRE.
+        # Sem este mínimo, 1 falha em 1 chamada = 100% de falha e o CB abriria cedo demais.
+        # Valor baixo (5) é ideal para DEMONSTRAÇÃO — em produção seria 20-50.
+        minimumNumberOfCalls: 5
+
+        # Taxa de falha (%) que dispara a abertura do circuito.
+        # 50% = se metade das chamadas na janela falharem, o disjuntor desarma.
+        failureRateThreshold: 50
+
+        # Tempo que o circuito fica ABERTO antes de tentar se recuperar (ir para HALF_OPEN).
+        # 10s é curto para facilitar demonstração. Em produção: 30s, 60s ou mais.
+        waitDurationInOpenState: 10s
+
+        # Quantas chamadas de teste são permitidas no estado HALF_OPEN.
+        # Se essas chamadas tiverem sucesso, o circuito fecha (CLOSED) novamente.
+        # Se falharem, volta para OPEN e aguarda mais waitDurationInOpenState.
+        permittedNumberOfCallsInHalfOpenState: 3
+
+      cartao:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+
+      investimentos:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+
+  # ----------------------------------------------------------------------------
+  # TIME LIMITER — Limita o tempo de espera por uma resposta
+  # ----------------------------------------------------------------------------
+  # Por que usar? Uma thread aguardando um serviço lento fica bloqueada.
+  # Com muitas requisições simultâneas, isso esgota o pool de threads do servidor
+  # — o BFF para de responder mesmo para serviços que estão funcionando.
+  # O TimeLimiter cancela a tarefa assíncrona se ultrapassar o tempo configurado.
+  timelimiter:
+    instances:
+      saldo:
+        # Tempo máximo que o BFF espera pelo serviço de saldo responder.
+        timeoutDuration: 2s
+      cartao:
+        timeoutDuration: 2s
+      investimentos:
+        timeoutDuration: 2s
+
+  # ----------------------------------------------------------------------------
+  # RETRY — Tenta novamente em caso de falha transitória
+  # ----------------------------------------------------------------------------
+  # Por que usar? Erros de rede são muitas vezes momentâneos (pacote perdido,
+  # GC pause no serviço, reinicialização rápida). Tentar uma vez a mais pode
+  # evitar que o usuário veja um erro sem necessidade.
+  # IMPORTANTE: Retry é innermost na cadeia — cada tentativa é observada
+  # individualmente pelo CircuitBreaker. Retries esgotados = 1 falha no CB.
+  retry:
+    instances:
+      saldo:
+        # Número TOTAL de tentativas (inclui a original).
+        # Com 2: tenta 1 vez → falha → tenta mais 1 vez → desiste e aciona o CB.
+        maxAttempts: 2
+        # Pausa entre tentativas. Evita bombardear um serviço que está se recuperando.
+        waitDuration: 300ms
+      cartao:
+        maxAttempts: 2
+        waitDuration: 300ms
+      investimentos:
+        maxAttempts: 2
+        waitDuration: 300ms

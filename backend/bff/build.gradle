@@ -20,6 +20,26 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// Actuator: expõe endpoints de monitoramento (/actuator/health, /actuator/circuitbreakers, etc.)
+	// Sem isso, não conseguimos observar o estado dos circuit breakers em tempo real
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// Resilience4j para Spring Boot 4 (Spring Framework 7).
+	// IMPORTANTE: NÃO usar resilience4j-spring-boot3 — é incompatível com o Boot 4.
+	// Este starter registra os aspectos AOP de @CircuitBreaker, @TimeLimiter e @Retry
+	// como beans do Spring automaticamente via auto-configuration.
+	// Versão 2.4.0: primeira versão estável para Spring Boot 4 / Spring Framework 7
+	implementation 'io.github.resilience4j:resilience4j-spring-boot4:2.4.0'
+
+	// AspectJ Weaver: biblioteca que permite ao Spring criar proxies AOP em tempo de execução.
+	// No Spring Boot 3, isso vinha embutido em spring-boot-starter-aop.
+	// No Spring Boot 4, o starter-aop foi removido — precisamos declarar o aspectjweaver
+	// diretamente. SEM esta dependência, as anotações @CircuitBreaker são ignoradas em silêncio
+	// (o método é chamado normalmente, sem circuit breaker algum).
+	// A versão é gerenciada pelo BOM do Spring Boot, não precisamos especificar.
+	implementation 'org.aspectj:aspectjweaver'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
