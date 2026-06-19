@@ -1,0 +1,22 @@
+# Pastas geradas pelo Gradle — não precisam de versionamento
+.gradle/
+build/
+
+# Mantém o .jar do wrapper (necessário para o Gradle funcionar sem internet)
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# IntelliJ IDEA — arquivos de configuração local do IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Node.js / Frontend
+frontend/node_modules/
+frontend/dist/
+
+# VS Code
+.vscode/

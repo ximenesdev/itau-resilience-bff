@@ -1,0 +1,27 @@
+// =============================================================================
+// settings.gradle — RAIZ DO PROJETO MULTI-MÓDULO
+// =============================================================================
+// PROBLEMA QUE ESTE ARQUIVO RESOLVE (a "xícara" no IntelliJ):
+//
+// Antes: cada serviço tinha seu próprio settings.gradle declarando
+//   rootProject.name = 'nome-do-servico'
+// Isso significa que o Gradle enxergava 4 PROJETOS INDEPENDENTES,
+// como se fossem 4 repositórios separados. O IntelliJ não sabia quem
+// era o "dono" do projeto e mostrava ícone de xícara (arquivo Java solto)
+// nos módulos que não foram abertos diretamente como raiz.
+//
+// Agora: este único settings.gradle na RAIZ declara 1 projeto com 4 módulos.
+// O IntelliJ abre a raiz, lê este arquivo, descobre os 4 submódulos
+// e cria botão de Run/Stop para cada um.
+// =============================================================================
+
+// Nome do projeto raiz (aparece no IntelliJ como nome do projeto)
+rootProject.name = 'itau-resilience-bff'
+
+// Inclui cada serviço como submódulo.
+// O Gradle converte ':' em separador de pasta: 'backend:bff' → ./backend/bff/
+// O Gradle vai procurar o build.gradle de cada módulo na pasta correspondente.
+include 'backend:bff'
+include 'backend:servico-saldo'
+include 'backend:servico-cartao'
+include 'backend:servico-investimentos'

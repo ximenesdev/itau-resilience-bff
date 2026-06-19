@@ -1,0 +1,17 @@
+// =============================================================================
+// build.gradle — RAIZ DO PROJETO (configurações compartilhadas)
+// =============================================================================
+// Este arquivo define configurações que valem para TODOS os submódulos,
+// evitando repetição. Cada submódulo ainda tem seu próprio build.gradle
+// para declarar suas dependências específicas (ex: Resilience4j no bff).
+//
+// 'allprojects' aplica o bloco a este projeto raiz + todos os submódulos.
+// =============================================================================
+
+allprojects {
+    // Grupo Maven: identifica a "organização" nos artefatos gerados (ex: .jar)
+    group = 'com.itau'
+
+    // Versão dos artefatos — SNAPSHOT indica que é uma versão em desenvolvimento
+    version = '0.0.1-SNAPSHOT'
+}

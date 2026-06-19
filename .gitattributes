@@ -1,0 +1,5 @@
+# Garante que o script gradlew use fim de linha LF (Linux/Mac) mesmo no Windows,
+# pois o script shell falha se tiver CRLF (Windows) ao rodar em Linux/Mac.
+/gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary
