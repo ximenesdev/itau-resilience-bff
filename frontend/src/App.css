@@ -473,6 +473,118 @@ body::before {
 .tech-name { font-size: 16px; font-weight: 700; letter-spacing: -0.5px; }
 .tech-desc { font-size: 12px; color: var(--ink-soft); font-weight: 500; }
 
+/* ===================== PAINEL DE RESILIÊNCIA ===================== */
+/* Estilos funcionais (Fase B). O visual definitivo virá no redesign (Fase C). */
+
+/* Status global no cabeçalho */
+.global-status {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 9px 16px; border-radius: 12px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.global-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.global-ok { background: var(--green-soft); color: var(--green); border-color: #C7E4D2; }
+.global-ok .global-dot { background: var(--green); }
+.global-recover { background: var(--orange-soft); color: var(--orange-deep); border-color: #F2C99B; }
+.global-recover .global-dot { background: var(--orange); animation: pulse 1.4s infinite; }
+.global-fail { background: var(--red-soft); color: var(--red); border-color: #F2CDC8; }
+.global-fail .global-dot { background: var(--red); animation: pulse 1.2s infinite; }
+
+/* Avisos de conexão */
+.painel-aviso {
+  padding: 12px 16px; border-radius: 12px; font-size: 13px; font-weight: 500;
+  background: var(--orange-soft); color: var(--orange-deep); margin-bottom: 1.5rem;
+}
+.painel-aviso.erro { background: var(--red-soft); color: var(--red); }
+.painel-aviso.pequeno { margin-top: 12px; margin-bottom: 0; font-size: 12px; padding: 8px 12px; }
+
+/* Legenda dos estados */
+.legenda {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  margin-bottom: 1.75rem; font-size: 12px; color: var(--ink-soft); font-weight: 500;
+}
+.legenda-item { display: inline-flex; align-items: center; gap: 7px; }
+.legenda-cor { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.legenda-pulse { margin-left: auto; color: var(--green); font-weight: 600; font-size: 11px; }
+
+/* Cores de estado (verde/âmbar/vermelho TÊM significado) */
+.legenda-cor.estado-closed, .estado-badge.estado-closed { background: var(--green); }
+.legenda-cor.estado-halfopen, .estado-badge.estado-halfopen { background: var(--orange); }
+.legenda-cor.estado-open, .estado-badge.estado-open { background: var(--red); }
+
+/* Grade de cards de controle */
+.painel-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 2rem;
+}
+.painel-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 1.5rem; display: flex; flex-direction: column;
+}
+/* Faixa lateral colorida indicando o estado */
+.painel-card { position: relative; overflow: hidden; }
+.painel-card::before {
+  content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px;
+  transition: background 0.4s var(--ease);
+}
+.painel-card.estado-closed::before { background: var(--green); }
+.painel-card.estado-halfopen::before { background: var(--orange); }
+.painel-card.estado-open::before { background: var(--red); }
+
+.painel-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.painel-card-nome { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.5px; }
+.painel-card-porta { font-size: 11px; color: var(--ink-faint); font-family: monospace; margin-top: 2px; }
+
+.estado-badge {
+  color: white; font-size: 10px; font-weight: 700; letter-spacing: 0.6px;
+  padding: 5px 10px; border-radius: 8px; white-space: nowrap; flex-shrink: 0;
+}
+.painel-card-desc { font-size: 12px; color: var(--ink-soft); margin-top: 10px; min-height: 18px; }
+
+/* Métricas */
+.metricas { display: flex; gap: 1rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+.metrica { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.metrica-valor { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.8px; font-variant-numeric: tabular-nums; }
+.metrica-rotulo { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; }
+
+/* Último motivo */
+.ultimo-motivo {
+  margin-top: 1rem; padding: 9px 12px; background: var(--paper); border-radius: 10px;
+  font-size: 12px; display: flex; flex-direction: column; gap: 2px;
+}
+.ultimo-motivo-rotulo { color: var(--ink-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; }
+.ultimo-motivo-valor { color: var(--ink); font-weight: 600; }
+
+/* Controles (botões de injeção de falha) */
+.controles { display: flex; gap: 8px; margin-top: 1.25rem; }
+.ctrl-btn {
+  flex: 1; padding: 9px 8px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink-soft); font-family: 'Poppins', sans-serif;
+  font-size: 12px; font-weight: 600; cursor: pointer; min-height: 40px;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease), color 0.18s var(--ease);
+}
+.ctrl-btn:hover:not(:disabled) { border-color: var(--ink-faint); }
+.ctrl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ctrl-btn.ativo.normal { background: var(--green); border-color: var(--green); color: white; }
+.ctrl-btn.ativo.erro { background: var(--red); border-color: var(--red); color: white; }
+.ctrl-btn.ativo.lentidao { background: var(--orange); border-color: var(--orange); color: white; }
+
+/* Dica da demonstração */
+.painel-dica {
+  padding: 16px 20px; background: var(--orange-soft); border: 1px dashed #F2C99B;
+  border-radius: 14px; font-size: 13px; color: var(--ink-soft); line-height: 1.7;
+}
+.painel-dica strong { color: var(--ink); }
+.painel-dica code {
+  background: rgba(236, 112, 0, 0.12); color: var(--orange-deep);
+  padding: 2px 6px; border-radius: 6px; font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .painel-grid { grid-template-columns: 1fr; }
+  .page-head .global-status { margin-top: 8px; }
+}
+
 /* ===================== RODAPÉ ===================== */
 .footer {
   max-width: 1080px; width: 100%; margin: 0 auto; padding: 2rem; border-top: 1px solid var(--line);

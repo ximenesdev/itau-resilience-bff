@@ -25,10 +25,13 @@ import java.util.concurrent.TimeoutException;
 public class ServicoBackend {
 
     private final RestTemplate restTemplate;
+    private final EstadoResiliencia estadoResiliencia;
 
-    // Spring injeta o RestTemplate registrado em BffApplication (@Bean)
-    public ServicoBackend(RestTemplate restTemplate) {
+    // Spring injeta o RestTemplate (BffApplication) e o EstadoResiliencia (@Component).
+    // O EstadoResiliencia guarda o motivo do último fallback para o painel ler.
+    public ServicoBackend(RestTemplate restTemplate, EstadoResiliencia estadoResiliencia) {
         this.restTemplate = restTemplate;
+        this.estadoResiliencia = estadoResiliencia;
     }
 
     // ==========================================================================
@@ -71,7 +74,7 @@ public class ServicoBackend {
         fallback.put("titular", "indisponível");
         fallback.put("saldo", 0);
         fallback.put("status", "CIRCUIT BREAKER ATIVO");
-        preencherMotivo(fallback, t);
+        preencherMotivo("saldo", fallback, t);
         return CompletableFuture.completedFuture(fallback);
     }
 
@@ -98,7 +101,7 @@ public class ServicoBackend {
         fallback.put("limite", 0);
         fallback.put("vencimento", "---");
         fallback.put("status", "CIRCUIT BREAKER ATIVO");
-        preencherMotivo(fallback, t);
+        preencherMotivo("cartao", fallback, t);
         return CompletableFuture.completedFuture(fallback);
     }
 
@@ -125,7 +128,7 @@ public class ServicoBackend {
         fallback.put("acoes", 0);
         fallback.put("total_investido", 0);
         fallback.put("status", "CIRCUIT BREAKER ATIVO");
-        preencherMotivo(fallback, t);
+        preencherMotivo("investimentos", fallback, t);
         return CompletableFuture.completedFuture(fallback);
     }
 
@@ -139,7 +142,7 @@ public class ServicoBackend {
     // O campo "status" permanece "CIRCUIT BREAKER ATIVO" em todos os casos
     // para manter compatibilidade com o frontend (que checa esse valor para pintar
     // o card de vermelho). O campo "motivo" é o detalhe técnico.
-    private void preencherMotivo(Map<String, Object> fallback, Throwable t) {
+    private void preencherMotivo(String circuito, Map<String, Object> fallback, Throwable t) {
         if (t instanceof CallNotPermittedException) {
             // Circuito ABERTO: Resilience4j bloqueou a chamada sem nem tentar.
             // Isso acontece quando a taxa de falha ultrapassou o failureRateThreshold.
@@ -161,5 +164,9 @@ public class ServicoBackend {
             fallback.put("motivo", "SERVICO_FORA");
             fallback.put("mensagem", "Serviço temporariamente indisponível — exibindo dados de contingência");
         }
+
+        // Guarda o motivo deste fallback para o painel de resiliência poder exibir
+        // "último motivo" de cada circuito. (O registry do Resilience4j não guarda isto.)
+        estadoResiliencia.registrarMotivo(circuito, (String) fallback.get("motivo"));
     }
 }

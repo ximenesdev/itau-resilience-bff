@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'framer-motion'
 import Lenis from 'lenis'
 import Dashboard from './pages/Dashboard.jsx'
+import Resiliencia from './pages/Resiliencia.jsx'
 import Extrato from './pages/Extrato.jsx'
 import Sobre from './pages/Sobre.jsx'
 
@@ -66,6 +67,7 @@ export default function App() {
 
             <div className="nav-links">
               <NavLink to="/" end className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Painel</NavLink>
+              <NavLink to="/resiliencia" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Resiliência</NavLink>
               <NavLink to="/extrato" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Extrato</NavLink>
               <NavLink to="/sobre" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Sobre o projeto</NavLink>
             </div>
@@ -97,6 +99,7 @@ export default function App() {
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               >
                 <NavLink to="/" end className={({ isActive }) => isActive ? 'nav-mobile-link active' : 'nav-mobile-link'}>Painel</NavLink>
+                <NavLink to="/resiliencia" className={({ isActive }) => isActive ? 'nav-mobile-link active' : 'nav-mobile-link'}>Resiliência</NavLink>
                 <NavLink to="/extrato" className={({ isActive }) => isActive ? 'nav-mobile-link active' : 'nav-mobile-link'}>Extrato</NavLink>
                 <NavLink to="/sobre" className={({ isActive }) => isActive ? 'nav-mobile-link active' : 'nav-mobile-link'}>Sobre o projeto</NavLink>
                 <div className="nav-mobile-user">
@@ -120,6 +123,7 @@ export default function App() {
             >
               <Routes location={location}>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/resiliencia" element={<Resiliencia />} />
                 <Route path="/extrato" element={<Extrato />} />
                 <Route path="/sobre" element={<Sobre />} />
               </Routes>
