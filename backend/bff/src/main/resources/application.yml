@@ -34,6 +34,34 @@ management:
 # ==============================================================================
 # RESILIENCE4J — Configuração dos padrões de resiliência
 # ==============================================================================
+#
+# ORDEM DOS ASPECTOS (decisão de design importante)
+# -------------------------------------------------
+# As 3 anotações (@CircuitBreaker, @Retry, @TimeLimiter) são "aspectos" AOP que
+# se ENVOLVEM um ao redor do outro como cebolas. A ORDEM define quem envolve quem.
+#
+# Por PADRÃO, o Resilience4j coloca o Retry como o aspecto MAIS EXTERNO:
+#     Retry( CircuitBreaker( TimeLimiter( chamada ) ) )
+# Isso tem uma consequência RUIM no nosso caso: o fallback está no @CircuitBreaker.
+# Quando uma chamada falha, o CB já "engole" o erro e devolve o fallback como
+# resultado de SUCESSO. Como o Retry está POR FORA do CB, ele enxerga esse sucesso
+# e NUNCA tenta de novo — o maxAttempts=2 vira configuração morta. (Descobrimos isso
+# inspecionando as métricas do Retry: 1 chamada "ok sem retry".)
+#
+# Nós invertemos de propósito para que o CircuitBreaker seja o MAIS EXTERNO:
+#     CircuitBreaker( Retry( TimeLimiter( chamada ) ) )
+# ATENÇÃO à direção: no Spring, quanto MENOR o número do order, mais EXTERNO é o
+# aspecto (menor número = maior precedência = executa primeiro). Por isso o CB
+# recebe o MENOR valor.
+# Por que essa ordem é a correta aqui?
+#   - O Retry passa a ficar POR DENTRO do CB, então ele vê a falha CRUA (antes do
+#     fallback) e realmente tenta de novo. O maxAttempts volta a ter efeito.
+#   - O disjuntor conta REQUISIÇÕES LÓGICAS, não tentativas: uma chamada que falha
+#     mesmo após esgotar os retries = exatamente 1 falha no CB. A taxa de falha
+#     reflete a saúde real do serviço, sem distorção causada pelo número de retries.
+#   - Cada tentativa tem seu próprio TimeLimiter (timeout por tentativa).
+#   Veja CircuitBreakerTest: há prova automatizada de que o Retry refaz a chamada
+#   (2 chamadas HTTP) e de que o CB registra só 1 falha por requisição.
 resilience4j:
 
   # ----------------------------------------------------------------------------
@@ -46,6 +74,10 @@ resilience4j:
   # - HALF_OPEN (semi-aberto): após waitDurationInOpenState, o CB deixa passar
   #   um número limitado de chamadas de teste para ver se o serviço se recuperou.
   circuitbreaker:
+    # Ordem do aspecto CB — quanto MENOR o número, mais EXTERNO. CB recebe o MENOR
+    # valor para ser o aspecto mais EXTERNO (envolve o Retry). É aqui que mora o
+    # fallback, então o Retry (por dentro) vê a falha crua e consegue tentar de novo.
+    circuitBreakerAspectOrder: 1
     instances:
       saldo:
         # Tipo de janela: COUNT_BASED conta as últimas N chamadas.
@@ -99,6 +131,9 @@ resilience4j:
   # — o BFF para de responder mesmo para serviços que estão funcionando.
   # O TimeLimiter cancela a tarefa assíncrona se ultrapassar o tempo configurado.
   timelimiter:
+    # Ordem do aspecto TimeLimiter — MAIOR valor = mais INTERNO. Fica colado na
+    # chamada real, então cada tentativa do Retry tem seu próprio limite de 2s.
+    timeLimiterAspectOrder: 3
     instances:
       saldo:
         # Tempo máximo que o BFF espera pelo serviço de saldo responder.
@@ -114,9 +149,14 @@ resilience4j:
   # Por que usar? Erros de rede são muitas vezes momentâneos (pacote perdido,
   # GC pause no serviço, reinicialização rápida). Tentar uma vez a mais pode
   # evitar que o usuário veja um erro sem necessidade.
-  # IMPORTANTE: Retry é innermost na cadeia — cada tentativa é observada
-  # individualmente pelo CircuitBreaker. Retries esgotados = 1 falha no CB.
+  # IMPORTANTE: por causa da ordem dos aspectos configurada acima, o Retry fica
+  # POR DENTRO do CircuitBreaker. As tentativas de retry NÃO são contadas
+  # individualmente pelo disjuntor — só o resultado FINAL conta. Ou seja:
+  # uma requisição que falha mesmo após esgotar os retries = 1 falha no CB.
   retry:
+    # Ordem do aspecto Retry — valor INTERMEDIÁRIO (entre CB=1 e TimeLimiter=3).
+    # Assim o Retry fica DENTRO do CB e POR FORA do TimeLimiter.
+    retryAspectOrder: 2
     instances:
       saldo:
         # Número TOTAL de tentativas (inclui a original).

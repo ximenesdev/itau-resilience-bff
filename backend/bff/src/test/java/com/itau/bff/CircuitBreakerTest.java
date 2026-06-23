@@ -15,6 +15,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atMost;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -98,5 +101,111 @@ class CircuitBreakerTest {
         // Com @Retry maxAttempts=2, as 5 chamadas anteriores = 10 tentativas ao mock.
         // A 6ª é bloqueada antes de chegar ao RestTemplate.
         verify(restTemplate, atMost(10)).getForObject(anyString(), eq(Map.class));
+    }
+
+    // ==========================================================================
+    // PROVA DA ORDEM DOS ASPECTOS: CircuitBreaker é o MAIS EXTERNO
+    // ==========================================================================
+    // Este teste é a "prova" da decisão de design registrada no application.yml.
+    // Configuramos a cadeia CircuitBreaker( Retry( TimeLimiter( chamada ) ) ).
+    // Por que essa ordem importa tanto?
+    //   - O fallback mora no @CircuitBreaker. No padrão do Resilience4j o Retry
+    //     fica POR FORA do CB e, quando o CB devolve o fallback como "sucesso",
+    //     o Retry nunca enxerga a falha e NÃO tenta de novo (maxAttempts vira
+    //     config morta). Colocando o CB por fora, o Retry passa a ver a falha crua.
+    // Duas coisas são provadas aqui:
+    //   1) o Retry REALMENTE refaz a chamada (2 chamadas HTTP);
+    //   2) o CircuitBreaker conta isso como UMA ÚNICA falha (requisição lógica),
+    //      não uma por tentativa.
+    @Test
+    void circuitBreakerContaUmaFalhaPorRequisicaoMesmoComRetry() throws Exception {
+        // Arrange: o serviço sempre falha → o @Retry (maxAttempts=2) deve tentar 2x
+        when(restTemplate.getForObject(anyString(), eq(Map.class)))
+            .thenThrow(new RuntimeException("Connection refused"));
+
+        CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("saldo");
+
+        // Act: UMA única chamada lógica ao BFF
+        servicoBackend.buscarSaldo().get();
+
+        // Assert 1: o RestTemplate foi chamado 2x → o Retry está POR DENTRO do CB
+        // e enxergou a falha crua, então refez a chamada (prova que maxAttempts=2
+        // está realmente em vigor, e não é configuração morta).
+        verify(restTemplate, times(2)).getForObject(anyString(), eq(Map.class));
+
+        // Assert 2: apesar das 2 chamadas HTTP, o disjuntor registrou EXATAMENTE
+        // 1 falha. Prova que o CB envolve o Retry: ele só enxerga o resultado FINAL
+        // da requisição lógica, não cada tentativa individual. (As métricas do CB
+        // são zeradas no @BeforeEach via reset(), então esta contagem é só deste teste.)
+        assertThat(cb.getMetrics().getNumberOfFailedCalls()).isEqualTo(1);
+    }
+
+    // ==========================================================================
+    // TIMEOUT: serviço lento aciona o fallback com motivo TIMEOUT
+    // ==========================================================================
+    @Test
+    void timeoutAcionaFallbackComMotivoTimeout() throws Exception {
+        // Arrange: o serviço "responde", mas DEMORA mais que o timeoutDuration (2s).
+        // Simulamos isso fazendo o mock dormir 3s antes de devolver a resposta.
+        // O @TimeLimiter deve cancelar a espera em 2s e tratar como falha.
+        when(restTemplate.getForObject(anyString(), eq(Map.class)))
+            .thenAnswer(invocation -> {
+                Thread.sleep(3000);
+                return Map.of("status", "ok");
+            });
+
+        // Act: como o serviço nunca responde a tempo, o fallback é acionado
+        Map<String, Object> resultado = servicoBackend.buscarSaldo().get();
+
+        // Assert: o fallback foi acionado especificamente por TIMEOUT.
+        // Prova que o @TimeLimiter está protegendo o BFF de threads presas em
+        // serviços lentos — e que distinguimos esse caso de um serviço fora do ar.
+        assertThat(resultado.get("status")).isEqualTo("CIRCUIT BREAKER ATIVO");
+        assertThat(resultado.get("motivo")).isEqualTo("TIMEOUT");
+    }
+
+    // ==========================================================================
+    // CICLO DE RECUPERAÇÃO: OPEN -> HALF_OPEN -> CLOSED
+    // ==========================================================================
+    // Demonstra o estado HALF_OPEN, que é o que torna o circuit breaker
+    // "auto-curável": depois de um tempo aberto, ele deixa passar algumas chamadas
+    // de teste; se o serviço se recuperou, o circuito fecha sozinho.
+    @Test
+    void circuitoFechaNovamenteQuandoServicoSeRecuperaNoHalfOpen() throws Exception {
+        CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("saldo");
+
+        // Arrange 1: serviço fora do ar. Usamos doThrow(...).when(...) (em vez de
+        // when(...).thenThrow) porque vamos RE-configurar o mock no meio do teste —
+        // e o estilo when(...) executaria o stub que lança exceção durante a própria
+        // reconfiguração, quebrando o teste.
+        doThrow(new RuntimeException("Service Unavailable"))
+            .when(restTemplate).getForObject(anyString(), eq(Map.class));
+
+        // Act 1: 5 falhas (= minimumNumberOfCalls, 100% > 50%) → circuito ABRE
+        for (int i = 0; i < 5; i++) {
+            servicoBackend.buscarSaldo().get();
+        }
+        assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+
+        // Act 2: forçamos a transição para HALF_OPEN. Em produção isso ocorre
+        // sozinho após waitDurationInOpenState (10s); no teste forçamos para não
+        // precisar esperar 10 segundos reais.
+        cb.transitionToHalfOpenState();
+        assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.HALF_OPEN);
+
+        // Arrange 2: o serviço se RECUPEROU — agora volta a responder normalmente.
+        doReturn(Map.of("status", "ok", "saldo", 100))
+            .when(restTemplate).getForObject(anyString(), eq(Map.class));
+
+        // Act 3: no HALF_OPEN são permitidas permittedNumberOfCallsInHalfOpenState=3
+        // chamadas de teste. Como todas têm sucesso, o circuito deve fechar.
+        for (int i = 0; i < 3; i++) {
+            Map<String, Object> r = servicoBackend.buscarSaldo().get();
+            assertThat(r.get("status")).isEqualTo("ok");
+        }
+
+        // Assert: serviço recuperado + chamadas de teste OK → circuito volta a CLOSED,
+        // restabelecendo o tráfego normal automaticamente.
+        assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
     }
 }
