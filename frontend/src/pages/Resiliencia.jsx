@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 
 // ============================================================================
@@ -134,32 +133,17 @@ export default function Resiliencia() {
           const taxa = circuito.taxaFalha
           const taxaTexto = (taxa === undefined || taxa < 0) ? '—' : `${taxa.toFixed(0)}%`
 
+          // Card sem motion: a cor da borda/faixa/badge é trocada pelo CSS, tudo na
+          // MESMA duração e easing (transição coordenada). Tiramos também a prop
+          // `layout`, que forçava re-medição do card a cada polling de 1,5s.
           return (
-            <motion.div
-              key={servico.id}
-              layout
-              className={`painel-card ${info.classe}`}
-              animate={{ borderColor: circuito.estado === 'OPEN' ? '#E5544B' : circuito.estado === 'HALF_OPEN' ? '#E9A93C' : '#2A241F' }}
-              transition={{ duration: 0.4 }}
-            >
+            <div key={servico.id} className={`painel-card ${info.classe}`}>
               <div className="painel-card-head">
                 <div>
                   <div className="painel-card-nome">{servico.nome}</div>
                   <div className="painel-card-porta" translate="no">svc-{servico.id} · :{servico.porta}</div>
                 </div>
-                <AnimatePresence mode="wait">
-                  <motion.span
-                    key={info.rotulo}
-                    className={`estado-badge ${info.classe}`}
-                    translate="no"
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ duration: 0.22 }}
-                  >
-                    {info.rotulo}
-                  </motion.span>
-                </AnimatePresence>
+                <span className={`estado-badge ${info.classe}`} translate="no">{info.rotulo}</span>
               </div>
 
               <div className="painel-card-desc">{info.desc}</div>
@@ -195,7 +179,7 @@ export default function Resiliencia() {
               {modoAtivo === 'INDISPONIVEL' && (
                 <div className="painel-aviso erro pequeno">Processo deste serviço parece estar parado.</div>
               )}
-            </motion.div>
+            </div>
           )
         })}
       </div>

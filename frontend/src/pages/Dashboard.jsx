@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
 import axios from 'axios'
 import { brl } from '../data.js'
 import CountUp from '../components/CountUp.jsx'
-import MagneticButton from '../components/MagneticButton.jsx'
 
 // Metadados de cada serviço (rótulo do cliente + identidade técnica).
 const SERVICOS = [
@@ -84,6 +82,11 @@ export default function Dashboard() {
   if (algumOpen) sys = { cls: 'sys-crit', rotulo: 'Falha isolada' }
   else if (algumHalf) sys = { cls: 'sys-warn', rotulo: 'Recuperando' }
 
+  // Está atualizando E já existem dados na tela. É o caso em que ANTES a tela
+  // mostrava números antigos parados e depois "pulava". Agora sinalizamos com a
+  // barra de progresso + tiles esmaecidos (sem esconder a informação).
+  const atualizando = loading && !!data
+
   return (
     <div className="page">
 
@@ -99,18 +102,22 @@ export default function Dashboard() {
               {sys.rotulo}
             </div>
           )}
-          <MagneticButton className="btn-refresh" onClick={buscar} disabled={loading} translate="no">
+          <button className="btn-refresh" onClick={buscar} disabled={loading} translate="no">
             <span className={loading ? 'spin-icon' : 'refresh-icon'}>↻</span> Atualizar
-          </MagneticButton>
+          </button>
         </div>
       </div>
+
+      {/* Barra de "atualizando" — só aparece quando já há dados e estamos buscando
+          de novo. É o feedback de carregamento não-bloqueante que faltava. */}
+      {atualizando && <div className="atualizando-bar" aria-hidden="true" />}
 
       {error && (
         <div className="error-state">
           <div className="error-icon">!</div>
           <p className="error-title">Não foi possível conectar ao servidor</p>
           <p className="error-sub">Verifique se o <span translate="no">BFF</span> está rodando na porta 8083</p>
-          <MagneticButton className="btn-refresh" onClick={buscar} translate="no">Tentar novamente</MagneticButton>
+          <button className="btn-refresh" onClick={buscar} translate="no">Tentar novamente</button>
         </div>
       )}
 
@@ -167,8 +174,12 @@ export default function Dashboard() {
             </section>
           </aside>
 
-          {/* ===== TILES DE SERVIÇO (direita) ===== */}
-          <div className="tiles">
+          {/* ===== TILES DE SERVIÇO (direita) =====
+              O saldo (Conta Corrente) é o tile HERO — maior e no topo — porque é o
+              dado principal que o cliente quer ver. Cartão e Investimentos vêm
+              menores logo abaixo. É a hierarquia visual pedida: serviço principal
+              em destaque, secundários embaixo. */}
+          <div className={`tiles ${atualizando ? 'tiles--atualizando' : ''}`} aria-busy={loading}>
             {loading && !data ? (
               <>
                 <div className="skeleton-tile" />
@@ -220,17 +231,16 @@ function Tile({ meta, dado, circuito, valor, rows, valorLabel, hero }) {
   const taxaTxt = (taxa === undefined || taxa < 0) ? '—' : `${taxa.toFixed(0)}%`
   const janela = circuito?.chamadasNaJanela ?? 0
 
+  // A cor da borda por estado (verde/âmbar/vermelho) agora vem das classes CSS
+  // (.tile.estado-open etc.), com transição suave no próprio CSS. Removemos o
+  // motion.article + prop `layout`: a `layout` forçava o navegador a RE-MEDIR o
+  // tile a cada atualização (reflow caro), e não precisávamos dela.
   return (
-    <motion.article
-      layout
-      className={`tile estado-${est.cls} ${hero ? 'tile-hero' : ''} ${down ? 'fallback' : ''}`}
-      animate={{ borderColor: circuito?.estado === 'OPEN' ? '#E5544B' : circuito?.estado === 'HALF_OPEN' ? '#E9A93C' : '#2A241F' }}
-      transition={{ duration: 0.4 }}
-    >
+    <article className={`tile estado-${est.cls} ${hero ? 'tile-hero' : ''} ${down ? 'fallback' : ''}`}>
       {down && circuito?.estado === 'OPEN' && (
         <>
           <span className="tile-stamp" translate="no">ISOLADO</span>
-          <motion.span className="tile-cut" initial={{ opacity: 0, scaleX: 0 }} animate={{ opacity: [0, 1, 0.4], scaleX: 1 }} transition={{ duration: 0.6 }} />
+          <span className="tile-cut" />
         </>
       )}
 
@@ -272,6 +282,6 @@ function Tile({ meta, dado, circuito, valor, rows, valorLabel, hero }) {
           </div>
         </>
       )}
-    </motion.article>
+    </article>
   )
 }

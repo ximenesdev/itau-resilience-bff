@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'framer-motion'
-import Lenis from 'lenis'
+import { AnimatePresence, motion, useScroll, useSpring } from 'framer-motion'
 import Dashboard from './pages/Dashboard.jsx'
 import Resiliencia from './pages/Resiliencia.jsx'
 import Extrato from './pages/Extrato.jsx'
@@ -35,21 +34,13 @@ function RelogioOps() {
 
 export default function App() {
   const location = useLocation()
-  const shouldReduce = useReducedMotion()
   const [menuOpen, setMenuOpen] = useState(false)
   const fecharMenu = () => setMenuOpen(false)
 
-  // Lenis: scroll suave. Mantido leve.
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.1,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-    })
-    function raf(time) { lenis.raf(time); requestAnimationFrame(raf) }
-    requestAnimationFrame(raf)
-    return () => lenis.destroy()
-  }, [])
+  // REMOVIDO: o Lenis (scroll suave estilo landing page). Num painel de operações
+  // ele atrapalhava — rodava um requestAnimationFrame infinito e, junto com o blur
+  // da barra, deixava o scroll "borrachudo" e travado. Voltamos ao scroll nativo,
+  // que é instantâneo e roda fora da thread principal.
 
   const linkClass = ({ isActive }) => isActive ? 'nav-link active' : 'nav-link'
   const mobileClass = ({ isActive }) => isActive ? 'nav-mobile-link active' : 'nav-mobile-link'
@@ -115,24 +106,23 @@ export default function App() {
           </AnimatePresence>
         </nav>
 
-        {/* ===== TELAS COM TRANSIÇÃO (sóbria, 200ms) ===== */}
+        {/* ===== TELAS COM TRANSIÇÃO ENTRE PÁGINAS =====
+            ANTES: AnimatePresence mode="wait" — ele ESPERAVA a página atual sair
+            (~200ms de tela VAZIA) antes de montar a nova. Era a principal causa da
+            sensação de "não flui" ao trocar de aba.
+            AGORA: a nova página entra IMEDIATAMENTE com um fade rápido (CSS, ~180ms).
+            O segredo é a `key={pathname}`: ao mudar de rota, o React troca a <div>,
+            e o CSS toca a animação de entrada. Sem espera, sem buraco. Anima só
+            opacity/transform (barato, roda na GPU). */}
         <main className="main">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: shouldReduce ? 0 : 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: shouldReduce ? 0 : -6 }}
-              transition={{ duration: shouldReduce ? 0.05 : 0.2, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <Routes location={location}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/resiliencia" element={<Resiliencia />} />
-                <Route path="/extrato" element={<Extrato />} />
-                <Route path="/sobre" element={<Sobre />} />
-              </Routes>
-            </motion.div>
-          </AnimatePresence>
+          <div className="page-swap" key={location.pathname}>
+            <Routes location={location}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/resiliencia" element={<Resiliencia />} />
+              <Route path="/extrato" element={<Extrato />} />
+              <Route path="/sobre" element={<Sobre />} />
+            </Routes>
+          </div>
         </main>
 
         {/* ===== RODAPÉ ===== */}

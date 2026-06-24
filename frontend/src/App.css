@@ -6,7 +6,8 @@
    Fontes: Bricolage Grotesque (títulos) + JetBrains Mono (dados).
    ===================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+/* As fontes são carregadas no index.html via <link rel="preconnect"> + <link>,
+   não mais por @import aqui — @import atrasava o primeiro desenho da tela. */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -92,8 +93,11 @@ h1, h2, h3, .display {
 /* ===================== BARRA DE OPERAÇÕES (NAV) ===================== */
 .nav {
   position: sticky; top: 0; z-index: var(--z-nav);
-  background: rgba(12, 11, 9, 0.82);
-  backdrop-filter: blur(10px);
+  /* ANTES: fundo translúcido + backdrop-filter: blur(10px). O blur era recalculado
+     pela GPU a CADA frame de scroll (caríssimo) e causava o engasgo. Trocamos por um
+     fundo SÓLIDO: zero custo de repaint, e como ele tem a mesma cor do fundo da
+     página, o conteúdo "some" por baixo da barra com naturalidade. */
+  background: var(--bg);
   border-bottom: 1px solid var(--hairline);
 }
 .nav-inner {
@@ -171,6 +175,15 @@ h1, h2, h3, .display {
 /* ===================== ÁREA PRINCIPAL ===================== */
 .main { flex: 1; max-width: 1280px; width: 100%; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
 .page { width: 100%; }
+
+/* Entrada da página ao trocar de aba: fade curto + leve subida. Só toca na ENTRADA
+   (a página antiga sai na hora), então nunca há tela vazia. `both` mantém o estado
+   final. 0.18s = abaixo de 300ms, na faixa "responsiva" recomendada. */
+.page-swap { animation: page-in 0.18s var(--ease) both; }
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* Cabeçalho de página */
 .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.75rem; }
@@ -313,11 +326,19 @@ h1, h2, h3, .display {
   padding: 5px 11px; border-radius: 5px; transform: rotate(5deg); opacity: 0.9;
   box-shadow: 0 0 16px var(--crit-glow);
 }
-/* Linha de "interrupção" que varre o tile quando o circuito abre */
+/* Linha de "interrupção" que varre o tile quando o circuito abre.
+   ANTES era animada pelo framer-motion (JS na thread principal). AGORA é CSS puro:
+   roda na GPU e não compete com o resto. Varre da esquerda p/ a direita (scaleX). */
 .tile-cut {
   position: absolute; left: 0; right: 0; top: 50%; height: 1px;
   background: linear-gradient(90deg, transparent, var(--crit), transparent);
-  pointer-events: none;
+  pointer-events: none; transform-origin: left center;
+  animation: tile-cut-sweep 0.6s var(--ease) both;
+}
+@keyframes tile-cut-sweep {
+  0%   { opacity: 0; transform: scaleX(0); }
+  60%  { opacity: 1; }
+  100% { opacity: 0.4; transform: scaleX(1); }
 }
 
 /* ===================== BOTÃO ATUALIZAR ===================== */
@@ -329,10 +350,32 @@ h1, h2, h3, .display {
 }
 .btn-refresh:not(:disabled):hover { background: #ff8517; box-shadow: 0 0 24px var(--brand-glow); }
 .btn-refresh:not(:disabled):hover .refresh-icon { transform: rotate(180deg); }
+/* Feedback de PRESSÃO: o botão "afunda" levemente ao ser clicado. Detalhe pequeno
+   que faz a interface parecer que ouviu o usuário (no lugar do efeito magnético). */
+.btn-refresh:not(:disabled):active { transform: scale(0.97); }
 .btn-refresh:disabled { opacity: 0.55; cursor: not-allowed; }
 .spin-icon { display: inline-block; animation: spin 0.7s linear infinite; }
 .refresh-icon { display: inline-block; transition: transform 0.5s var(--ease); }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Barra de carregamento INDETERMINADA — feedback de "atualizando" sem bloquear a
+   tela nem fazer os números "pularem". Uma faixa laranja desliza repetidamente.
+   PORQUÊ: sob lentidão a resposta pode levar segundos; o usuário precisa ver que
+   algo está acontecendo. Anima só transform (GPU). */
+.atualizando-bar {
+  height: 2px; border-radius: 2px; background: var(--bg-inset);
+  position: relative; overflow: hidden; margin-bottom: 1.25rem;
+}
+.atualizando-bar::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 35%;
+  background: linear-gradient(90deg, transparent, var(--brand), transparent);
+  animation: indeterminado 1s var(--ease) infinite;
+}
+@keyframes indeterminado { from { transform: translateX(-120%); } to { transform: translateX(400%); } }
+
+/* Enquanto atualiza, os tiles esmaecem de leve — sinaliza "dado sendo revisado"
+   sem esconder a informação. Combina com a barra acima. */
+.tiles--atualizando { opacity: 0.55; transition: opacity 0.2s var(--ease); }
 
 /* ===================== LOADING / ERRO ===================== */
 .loading-state, .error-state { text-align: center; padding: 4rem 0; color: var(--text-faint); }
@@ -379,11 +422,16 @@ h1, h2, h3, .display {
 .painel-card {
   background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: var(--radius);
   padding: 1.25rem; display: flex; flex-direction: column; position: relative; overflow: hidden;
+  /* A cor da borda agora vem do CSS (antes era animada pelo framer-motion, em JS).
+     Mesma duração (0.3s) e mesmo easing da faixa e do badge: a troca de estado
+     vira UM movimento coordenado, não três descoordenados que "piscavam". */
+  transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
 }
-.painel-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--ok); transition: background 0.4s var(--ease); }
+.painel-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--ok); transition: background 0.3s var(--ease); }
 .painel-card.estado-halfopen::before { background: var(--warn); }
 .painel-card.estado-open::before { background: var(--crit); }
-.painel-card.estado-open { box-shadow: 0 0 0 1px var(--crit-glow); }
+.painel-card.estado-halfopen { border-color: rgba(233, 169, 60, 0.45); }
+.painel-card.estado-open { border-color: rgba(229, 84, 75, 0.5); box-shadow: 0 0 0 1px var(--crit-glow); }
 
 .painel-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .painel-card-nome { font-family: 'Bricolage Grotesque', sans-serif; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.03em; }
@@ -392,6 +440,10 @@ h1, h2, h3, .display {
 .estado-badge {
   font-size: 10px; font-weight: 700; letter-spacing: 0.1em; padding: 4px 9px; border-radius: 4px;
   border: 1px solid; white-space: nowrap; flex-shrink: 0;
+  /* ANTES o badge era trocado com AnimatePresence mode="wait": o antigo encolhia e
+     sumia, DEPOIS o novo aparecia — descoordenado do resto = o "pisca". AGORA é o
+     MESMO elemento que só muda de cor, na mesma duração da borda e da faixa. */
+  transition: color 0.3s var(--ease), background 0.3s var(--ease), border-color 0.3s var(--ease);
 }
 .estado-badge.estado-closed { color: var(--ok); background: var(--ok-glow); border-color: rgba(88, 194, 129, 0.3); }
 .estado-badge.estado-halfopen { color: var(--warn); background: var(--warn-glow); border-color: rgba(233, 169, 60, 0.35); }
@@ -418,6 +470,7 @@ h1, h2, h3, .display {
   transition: border-color 0.16s var(--ease), background 0.16s var(--ease), color 0.16s var(--ease);
 }
 .ctrl-btn:hover:not(:disabled) { border-color: var(--hairline-bright); color: var(--text); }
+.ctrl-btn:not(:disabled):active { transform: scale(0.97); }
 .ctrl-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .ctrl-btn.ativo.normal { background: var(--ok-glow); border-color: var(--ok); color: var(--ok); }
 .ctrl-btn.ativo.erro { background: var(--crit-glow); border-color: var(--crit); color: var(--crit); }
@@ -454,6 +507,20 @@ h1, h2, h3, .display {
 .txn-value.neg { color: var(--text); }
 
 /* ===================== SOBRE ===================== */
+/* Layout em DUAS COLUNAS: texto à esquerda, diagrama de arquitetura animado à
+   direita (preenche o vazio que existia em telas largas). Em telas estreitas vira
+   uma coluna só (texto em cima, diagrama embaixo). */
+.sobre-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+@media (min-width: 920px) {
+  .sobre-grid { grid-template-columns: 1.05fr 0.95fr; gap: 3rem; align-items: start; }
+  /* O diagrama acompanha a rolagem (sticky) enquanto se lê o texto à esquerda. */
+  .sobre-visual { position: sticky; top: 76px; }
+}
+/* Dentro da coluna, o texto não precisa mais de max-width estreito — a própria
+   coluna já limita a largura da linha. */
+.sobre-texto .about-lead,
+.sobre-texto .about-block { max-width: none; }
+
 .about-lead { font-size: 1.5rem; font-weight: 600; line-height: 1.4; letter-spacing: -0.02em; color: var(--text);
   max-width: 30ch; margin-bottom: 2.5rem; font-family: 'Bricolage Grotesque', sans-serif; text-wrap: balance; }
 .about-lead strong { color: var(--brand); }
@@ -474,6 +541,26 @@ h1, h2, h3, .display {
 .arch-arrow { color: var(--text-faint); font-size: 16px; flex-shrink: 0; }
 .arch-services { display: flex; flex-direction: column; gap: 8px; }
 .arch-services .arch-node { padding: 8px 12px; }
+
+/* --- Diagrama de arquitetura ANIMADO (coluna direita da Sobre) --- */
+.diag {
+  background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: var(--radius);
+  padding: 1.25rem; margin: 0;
+}
+.diag svg { width: 100%; height: auto; display: block; }
+.diag-cap {
+  font-size: 11.5px; color: var(--text-mut); line-height: 1.6;
+  margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--hairline);
+}
+.diag-cap strong { color: var(--text); font-weight: 600; }
+/* Rótulos dentro do SVG (texto desenhado no diagrama) */
+.diag-tag { font-size: 7.5px; letter-spacing: 0.14em; fill: var(--text-faint); font-weight: 700; }
+.diag-name { font-size: 11px; fill: var(--text); font-weight: 600; }
+.diag-port { font-size: 8.5px; fill: var(--text-faint); }
+/* As linhas que "fluem": o tracejado escorre (stroke-dashoffset) sugerindo dados
+   em trânsito. Anima só a posição do tracejado — barato. */
+.diag-flow { animation: diag-fluxo 0.9s linear infinite; }
+@keyframes diag-fluxo { to { stroke-dashoffset: -16; } }
 
 .tech-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; margin-top: 1.25rem; }
 .tech-item { display: flex; flex-direction: column; gap: 4px; padding: 1.1rem; background: var(--bg-elev);
