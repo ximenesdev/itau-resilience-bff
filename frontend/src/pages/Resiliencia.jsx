@@ -143,7 +143,13 @@ export default function Resiliencia() {
                   <div className="painel-card-nome">{servico.nome}</div>
                   <div className="painel-card-porta" translate="no">svc-{servico.id} · :{servico.porta}</div>
                 </div>
-                <span className={`estado-badge ${info.classe}`} translate="no">{info.rotulo}</span>
+                <span className={`estado-badge ${info.classe}`} translate="no">
+                  {/* No half-open: ponto pulsando + "VERIFICANDO…" — mostra que o
+                      circuito está testando a recuperação, sem parecer travado. */}
+                  {circuito.estado === 'HALF_OPEN'
+                    ? (<><span className="badge-dot dot-pulse" />VERIFICANDO<span className="reticencias" /></>)
+                    : info.rotulo}
+                </span>
               </div>
 
               <div className="painel-card-desc">{info.desc}</div>

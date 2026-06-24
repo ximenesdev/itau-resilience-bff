@@ -103,7 +103,11 @@ export default function Dashboard() {
             </div>
           )}
           <button className="btn-refresh" onClick={buscar} disabled={loading} translate="no">
-            <span className={loading ? 'spin-icon' : 'refresh-icon'}>↻</span> Atualizar
+            {/* Carregando: anel girando + "Atualizando…". Parado: ícone ↻ + "Atualizar".
+                O spinner dedicado deixa CLARO que algo está acontecendo. */}
+            {loading
+              ? (<><span className="spinner-ring" aria-hidden="true" /> Atualizando…</>)
+              : (<><span className="refresh-icon">↻</span> Atualizar</>)}
           </button>
         </div>
       </div>
@@ -250,7 +254,12 @@ function Tile({ meta, dado, circuito, valor, rows, valorLabel, hero }) {
             escondemos o selo pequeno para os dois não se sobreporem. */}
         {!(down && circuito?.estado === 'OPEN') && (
           <span className={`tile-state ${est.cls}`} translate="no">
-            <span className="st-dot" />{est.rotulo}
+            {/* No half-open o dot PULSA e o texto vira "VERIFICANDO…" com reticências
+                animadas — comunica que o circuito está testando a recuperação. */}
+            <span className={`st-dot ${est.cls === 'halfopen' ? 'dot-pulse' : ''}`} />
+            {est.cls === 'halfopen'
+              ? (<>VERIFICANDO<span className="reticencias" /></>)
+              : est.rotulo}
           </span>
         )}
       </div>
@@ -262,26 +271,32 @@ function Tile({ meta, dado, circuito, valor, rows, valorLabel, hero }) {
         <span>janela {janela}/10</span>
       </div>
 
-      {down ? (
-        <>
-          <div className="tile-value">Indisponível</div>
-          <div className="tile-fallback-msg">{dado?.mensagem}</div>
-          <div className="tile-fallback-note" translate="no">
-            Motivo: {MOTIVO_LABEL[dado?.motivo] || dado?.motivo}. O disjuntor isolou este
-            serviço para proteger o restante do sistema.
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="tile-value"><CountUp value={valor} /></div>
-          <div className="tile-value-label">{valorLabel}</div>
-          <div className="tile-rows">
-            {rows.map(([k, v]) => (
-              <div className="tile-row" key={k}><span>{k}</span><span className="v">{v}</span></div>
-            ))}
-          </div>
-        </>
-      )}
+      {/* `key` muda quando o tile alterna entre NORMAL e FALLBACK. Isso faz o React
+          remontar este bloco, disparando o crossfade (.tile-body) — o conteúdo
+          ENTRA com fade em vez de "pular". Quando só o número muda, a key continua
+          a mesma e o CountUp anima sozinho. */}
+      <div className="tile-body" key={down ? 'fallback' : 'normal'}>
+        {down ? (
+          <>
+            <div className="tile-value">Indisponível</div>
+            <div className="tile-fallback-msg">{dado?.mensagem}</div>
+            <div className="tile-fallback-note" translate="no">
+              Motivo: {MOTIVO_LABEL[dado?.motivo] || dado?.motivo}. O disjuntor isolou este
+              serviço para proteger o restante do sistema.
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="tile-value"><CountUp value={valor} /></div>
+            <div className="tile-value-label">{valorLabel}</div>
+            <div className="tile-rows">
+              {rows.map(([k, v]) => (
+                <div className="tile-row" key={k}><span>{k}</span><span className="v">{v}</span></div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </article>
   )
 }

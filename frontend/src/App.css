@@ -67,6 +67,16 @@ body::before {
     radial-gradient(120% 90% at 50% 0%, transparent 60%, rgba(0, 0, 0, 0.45) 100%);
 }
 
+/* ===================== FOCO DE TECLADO (acessibilidade) =====================
+   Quem navega por teclado (Tab) precisa VER onde está. `:focus-visible` só aparece
+   na navegação por teclado (não no clique de mouse). Anel laranja de marca, sem
+   movimento — visível em fundo escuro. `outline` não empurra layout. */
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* Títulos: Bricolage Grotesque, tracking apertado (nunca abaixo de -0.04em) */
 h1, h2, h3, .display {
   font-family: 'Bricolage Grotesque', sans-serif;
@@ -263,14 +273,30 @@ h1, h2, h3, .display {
 .tile {
   position: relative; background: var(--bg-elev); border: 1px solid var(--hairline);
   border-radius: var(--radius); padding: 1.4rem 1.5rem; overflow: hidden;
-  transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+  /* border-color em 0.3s (acompanha a troca de ESTADO do circuito) e transform/
+     box-shadow em 0.18s (acompanham o HOVER). Durações separadas, mas tudo só em
+     propriedades baratas (GPU). */
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease),
+              border-color 0.3s var(--ease);
 }
-.tile:hover { border-color: var(--hairline-bright); }
+/* Hover: o card "levanta" 2px e ganha uma sombra de profundidade. Em cards grandes
+   usamos translateY (não scale) para NÃO borrar o número gigante. */
+.tile:hover { transform: translateY(-2px); border-color: var(--hairline-bright);
+  box-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.9); }
 
 /* Faixa de status no topo do tile (fina, sem ser side-stripe de card) */
 .tile::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: var(--ok); transition: background 0.4s var(--ease);
+  background: var(--ok); transition: background 0.3s var(--ease); /* unificado em 0.3s */
+}
+
+/* Crossfade do CONTEÚDO do tile quando ele troca entre NORMAL e FALLBACK.
+   Em vez de o conteúdo "pular" para o novo, ele entra com um fade + leve subida.
+   Disparado por uma `key` que muda no React (ver Dashboard.jsx). */
+.tile-body { animation: tile-body-in 0.25s var(--ease) both; }
+@keyframes tile-body-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
 }
 .tile.estado-halfopen::before { background: var(--warn); }
 .tile.estado-open::before { background: var(--crit); }
@@ -289,13 +315,40 @@ h1, h2, h3, .display {
   display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px; border-radius: 4px;
   font-size: 10px; font-weight: 700; letter-spacing: 0.1em; border: 1px solid; white-space: nowrap; flex-shrink: 0;
 }
-.tile-state .st-dot { width: 6px; height: 6px; border-radius: 50%; }
+.tile-state .st-dot { width: 6px; height: 6px; border-radius: 50%; position: relative; }
 .tile-state.closed { color: var(--ok); background: var(--ok-glow); border-color: rgba(88, 194, 129, 0.3); }
 .tile-state.closed .st-dot { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
 .tile-state.halfopen { color: var(--warn); background: var(--warn-glow); border-color: rgba(233, 169, 60, 0.35); }
 .tile-state.halfopen .st-dot { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
 .tile-state.open { color: var(--crit); background: var(--crit-glow); border-color: rgba(229, 84, 75, 0.4); }
 .tile-state.open .st-dot { background: var(--crit); box-shadow: 0 0 6px var(--crit); }
+
+/* ===================== HALF-OPEN: "está em andamento" =====================
+   Pulso (anel que expande e some) no dot quando o circuito está VERIFICANDO se o
+   serviço voltou. Comunica movimento sem alarme. Anima só transform/opacity. */
+.dot-pulse { position: relative; }
+.dot-pulse::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 100%; height: 100%;
+  border-radius: 50%; border: 1px solid var(--warn);
+  transform: translate(-50%, -50%) scale(1); transform-origin: center;
+  animation: pulso-anel 1.6s var(--ease) infinite; pointer-events: none;
+}
+@keyframes pulso-anel {
+  0%   { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0;   transform: translate(-50%, -50%) scale(3); }
+}
+
+/* Reticências animadas para o texto "VERIFICANDO" — os pontinhos vão de
+   "" → "." → ".." → "..." indicando processo em curso. */
+.reticencias::after {
+  content: ''; animation: reticencias 1.4s steps(1, end) infinite;
+}
+@keyframes reticencias {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%, 100% { content: '...'; }
+}
 
 /* O número financeiro: MONO tabular, grande (não é fonte display em dado) */
 .tile-value {
@@ -346,16 +399,28 @@ h1, h2, h3, .display {
   display: inline-flex; align-items: center; gap: 8px; background: var(--brand); color: #1a0e02;
   border: none; border-radius: var(--radius); padding: 9px 16px; font-family: 'JetBrains Mono', monospace;
   font-size: 12px; font-weight: 700; letter-spacing: 0.02em; cursor: pointer; min-height: 38px;
-  transition: background 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  /* A transição AGORA inclui `transform` — sem isso o hover/press ficavam "duros".
+     Durações curtas (0.14–0.16s) e ease-out: reage rápido ao mouse. */
+  transition: transform 0.14s var(--ease), background 0.16s var(--ease), box-shadow 0.16s var(--ease);
 }
-.btn-refresh:not(:disabled):hover { background: #ff8517; box-shadow: 0 0 24px var(--brand-glow); }
-.btn-refresh:not(:disabled):hover .refresh-icon { transform: rotate(180deg); }
-/* Feedback de PRESSÃO: o botão "afunda" levemente ao ser clicado. Detalhe pequeno
-   que faz a interface parecer que ouviu o usuário (no lugar do efeito magnético). */
-.btn-refresh:not(:disabled):active { transform: scale(0.97); }
-.btn-refresh:disabled { opacity: 0.55; cursor: not-allowed; }
-.spin-icon { display: inline-block; animation: spin 0.7s linear infinite; }
-.refresh-icon { display: inline-block; transition: transform 0.5s var(--ease); }
+/* Hover: o botão "sobe" 1px (como reagindo ao dedo) e ganha brilho. */
+.btn-refresh:not(:disabled):hover { background: #ff8517; box-shadow: 0 4px 18px var(--brand-glow); transform: translateY(-1px); }
+/* Press: volta ao chão e "afunda" de leve — sensação física de clique. */
+.btn-refresh:not(:disabled):active { transform: translateY(0) scale(0.97); }
+.btn-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
+.refresh-icon { display: inline-block; }
+
+/* ----- SPINNER (anel) reutilizável: indicador de carregamento claro -----
+   Um anel com um lado "vazado" girando em velocidade CONSTANTE (linear). É o
+   indicador dedicado que faltava — bem melhor do que o glifo ↻ se debatendo.
+   `currentColor` faz o anel herdar a cor do texto onde estiver (no botão laranja,
+   o texto é escuro; numa cor de status, herda a cor do status). */
+.spinner-ring {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid currentColor; border-top-color: transparent;
+  display: inline-block; flex-shrink: 0;
+  animation: spin 0.6s linear infinite;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Barra de carregamento INDETERMINADA — feedback de "atualizando" sem bloquear a
@@ -374,8 +439,8 @@ h1, h2, h3, .display {
 @keyframes indeterminado { from { transform: translateX(-120%); } to { transform: translateX(400%); } }
 
 /* Enquanto atualiza, os tiles esmaecem de leve — sinaliza "dado sendo revisado"
-   sem esconder a informação. Combina com a barra acima. */
-.tiles--atualizando { opacity: 0.55; transition: opacity 0.2s var(--ease); }
+   sem esconder a informação (padrão stale-while-revalidate). Combina com a barra. */
+.tiles--atualizando { opacity: 0.6; transition: opacity 0.2s var(--ease); }
 
 /* ===================== LOADING / ERRO ===================== */
 .loading-state, .error-state { text-align: center; padding: 4rem 0; color: var(--text-faint); }
@@ -423,10 +488,13 @@ h1, h2, h3, .display {
   background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: var(--radius);
   padding: 1.25rem; display: flex; flex-direction: column; position: relative; overflow: hidden;
   /* A cor da borda agora vem do CSS (antes era animada pelo framer-motion, em JS).
-     Mesma duração (0.3s) e mesmo easing da faixa e do badge: a troca de estado
-     vira UM movimento coordenado, não três descoordenados que "piscavam". */
-  transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+     Mesma duração (0.3s) da faixa e do badge: a troca de estado vira UM movimento
+     coordenado. transform/box-shadow em 0.18s acompanham o HOVER. */
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease),
+              border-color 0.3s var(--ease);
 }
+/* Hover do card de serviço: mesma elevação dos tiles (coesão entre as páginas). */
+.painel-card:hover { transform: translateY(-2px); box-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.9); }
 .painel-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--ok); transition: background 0.3s var(--ease); }
 .painel-card.estado-halfopen::before { background: var(--warn); }
 .painel-card.estado-open::before { background: var(--crit); }
@@ -438,6 +506,7 @@ h1, h2, h3, .display {
 .painel-card-porta { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
 
 .estado-badge {
+  display: inline-flex; align-items: center; gap: 6px;
   font-size: 10px; font-weight: 700; letter-spacing: 0.1em; padding: 4px 9px; border-radius: 4px;
   border: 1px solid; white-space: nowrap; flex-shrink: 0;
   /* ANTES o badge era trocado com AnimatePresence mode="wait": o antigo encolhia e
@@ -448,6 +517,8 @@ h1, h2, h3, .display {
 .estado-badge.estado-closed { color: var(--ok); background: var(--ok-glow); border-color: rgba(88, 194, 129, 0.3); }
 .estado-badge.estado-halfopen { color: var(--warn); background: var(--warn-glow); border-color: rgba(233, 169, 60, 0.35); }
 .estado-badge.estado-open { color: var(--crit); background: var(--crit-glow); border-color: rgba(229, 84, 75, 0.4); }
+/* Ponto que pulsa dentro do badge VERIFICANDO (Resiliência). Herda a cor âmbar. */
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
 .painel-card-desc { font-size: 11.5px; color: var(--text-mut); margin-top: 9px; min-height: 17px; }
 
@@ -484,7 +555,10 @@ h1, h2, h3, .display {
 /* ===================== EXTRATO ===================== */
 .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
 .summary-card { background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: var(--radius);
-  padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 8px; }
+  padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 8px;
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), border-color 0.18s var(--ease); }
+.summary-card:hover { transform: translateY(-2px); border-color: var(--hairline-bright);
+  box-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.9); }
 .summary-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
 .summary-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .summary-value.pos { color: var(--ok); }
@@ -547,16 +621,23 @@ h1, h2, h3, .display {
   background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: var(--radius);
   padding: 1.25rem; margin: 0;
 }
+/* Cabeçalho do card: alinha visualmente com a primeira linha do texto à esquerda. */
+.diag-head {
+  margin-bottom: 1rem; padding-bottom: 0.85rem; border-bottom: 1px solid var(--hairline);
+  color: var(--text-mut);
+}
 .diag svg { width: 100%; height: auto; display: block; }
 .diag-cap {
   font-size: 11.5px; color: var(--text-mut); line-height: 1.6;
   margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--hairline);
 }
 .diag-cap strong { color: var(--text); font-weight: 600; }
-/* Rótulos dentro do SVG (texto desenhado no diagrama) */
-.diag-tag { font-size: 7.5px; letter-spacing: 0.14em; fill: var(--text-faint); font-weight: 700; }
-.diag-name { font-size: 11px; fill: var(--text); font-weight: 600; }
-.diag-port { font-size: 8.5px; fill: var(--text-faint); }
+/* Rótulos dentro do SVG. Fontes pequenas (unidades do viewBox) porque o SVG é
+   ampliado ~1,4x ao preencher a coluna — assim o tamanho final fica proporcional
+   aos quadradinhos dos nós (antes estavam grandes demais). */
+.diag-tag { font-size: 6px; letter-spacing: 0.12em; fill: var(--text-faint); font-weight: 700; }
+.diag-name { font-size: 9px; fill: var(--text); font-weight: 600; }
+.diag-port { font-size: 7px; fill: var(--text-faint); }
 /* As linhas que "fluem": o tracejado escorre (stroke-dashoffset) sugerindo dados
    em trânsito. Anima só a posição do tracejado — barato. */
 .diag-flow { animation: diag-fluxo 0.9s linear infinite; }
@@ -564,8 +645,10 @@ h1, h2, h3, .display {
 
 .tech-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; margin-top: 1.25rem; }
 .tech-item { display: flex; flex-direction: column; gap: 4px; padding: 1.1rem; background: var(--bg-elev);
-  border: 1px solid var(--hairline); border-radius: var(--radius); transition: border-color 0.2s var(--ease); }
-.tech-item:hover { border-color: var(--hairline-bright); }
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), border-color 0.18s var(--ease); }
+.tech-item:hover { transform: translateY(-2px); border-color: var(--hairline-bright);
+  box-shadow: 0 12px 28px -22px rgba(0, 0, 0, 0.9); }
 .tech-name { font-size: 14px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
 .tech-desc { font-size: 11.5px; color: var(--text-mut); }
 
@@ -612,4 +695,7 @@ h1, h2, h3, .display {
     transition-duration: 0.05s !important; }
   .scroll-progress { display: none; }
   body::before { background: radial-gradient(120% 90% at 50% 0%, transparent 60%, rgba(0,0,0,0.45) 100%); }
+  /* Um spinner/pulso CONGELADO parece quebrado. Para quem reduz movimento, escondemos
+     o anel e o pulso — o TEXTO ("Atualizando…", "VERIFICANDO") já comunica o estado. */
+  .spinner-ring, .dot-pulse::after { display: none !important; }
 }
