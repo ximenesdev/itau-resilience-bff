@@ -4,6 +4,7 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -26,6 +27,20 @@ public class ServicoBackend {
 
     private final RestTemplate restTemplate;
     private final EstadoResiliencia estadoResiliencia;
+
+    // URLs BASE de cada serviço de backend. Lidas da configuração com PADRÃO = localhost.
+    // PORQUÊ: rodando local (sem Docker), o BFF acha os serviços em localhost:8080/8081/8082.
+    // Dentro do Docker Compose, cada container só é alcançado pelo NOME do serviço na rede
+    // interna (ex.: http://servico-saldo:8080) — o Compose sobrescreve estes valores via
+    // variáveis de ambiente (SERVICOS_SALDO, SERVICOS_CARTAO, SERVICOS_INVESTIMENTOS).
+    // O "relaxed binding" do Spring liga servicos.saldo <-> SERVICOS_SALDO automaticamente.
+    // Assim o MESMO código roda nos dois ambientes sem alteração.
+    @Value("${servicos.saldo:http://localhost:8080}")
+    private String urlSaldo;
+    @Value("${servicos.cartao:http://localhost:8081}")
+    private String urlCartao;
+    @Value("${servicos.investimentos:http://localhost:8082}")
+    private String urlInvestimentos;
 
     // Spring injeta o RestTemplate (BffApplication) e o EstadoResiliencia (@Component).
     // O EstadoResiliencia guarda o motivo do último fallback para o painel ler.
@@ -59,7 +74,7 @@ public class ServicoBackend {
         return CompletableFuture.supplyAsync(() -> {
             @SuppressWarnings("unchecked")
             Map<String, Object> resultado = (Map<String, Object>)
-                restTemplate.getForObject("http://localhost:8080/saldo", Map.class);
+                restTemplate.getForObject(urlSaldo + "/saldo", Map.class);
             return resultado != null ? resultado : Map.of();
         });
     }
@@ -89,7 +104,7 @@ public class ServicoBackend {
         return CompletableFuture.supplyAsync(() -> {
             @SuppressWarnings("unchecked")
             Map<String, Object> resultado = (Map<String, Object>)
-                restTemplate.getForObject("http://localhost:8081/cartao", Map.class);
+                restTemplate.getForObject(urlCartao + "/cartao", Map.class);
             return resultado != null ? resultado : Map.of();
         });
     }
@@ -116,7 +131,7 @@ public class ServicoBackend {
         return CompletableFuture.supplyAsync(() -> {
             @SuppressWarnings("unchecked")
             Map<String, Object> resultado = (Map<String, Object>)
-                restTemplate.getForObject("http://localhost:8082/investimentos", Map.class);
+                restTemplate.getForObject(urlInvestimentos + "/investimentos", Map.class);
             return resultado != null ? resultado : Map.of();
         });
     }

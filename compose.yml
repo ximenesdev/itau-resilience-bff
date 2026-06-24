@@ -1,0 +1,109 @@
+# =============================================================================
+# compose.yml — sobe os 4 serviços backend com UM comando: docker compose up
+# =============================================================================
+# Em vez de abrir 5 terminais e rodar cada serviço na mão, este arquivo descreve
+# os 4 containers, conecta todos numa REDE INTERNA (onde eles se enxergam pelo
+# NOME do serviço) e define a ORDEM: o BFF só sobe depois que os 3 serviços de
+# baixo estiverem saudáveis.
+#
+# (Não usamos a chave "version:" — ela é obsoleta no Docker Compose moderno.)
+
+# Bloco reutilizável de configuração de build (cada serviço só troca o MODULE).
+# O &ancora / *referência é um recurso do YAML para não repetir texto.
+services:
+
+  # ---------------------------------------------------------------------------
+  # SERVIÇO DE SALDO (porta 8080)
+  # ---------------------------------------------------------------------------
+  servico-saldo:
+    build:
+      context: .                    # contexto = raiz do repo (o Gradle é multi-módulo)
+      dockerfile: docker/Dockerfile # o Dockerfile reutilizável
+      args:
+        MODULE: backend:servico-saldo  # qual módulo compilar
+        PORTA: "8080"
+    ports:
+      - "8080:8080"                 # porta_host:porta_container (acesso pelo host)
+    # HEALTHCHECK por PORTA ABERTA: o Spring Boot só abre a porta quando a aplicação
+    # está realmente pronta, então "porta aceitando conexão" = "saudável". Não usamos
+    # /actuator/health de propósito (os serviços de baixo não têm Actuator e, no BFF,
+    # o health vira DOWN quando um circuito abre — daria falso negativo na demo).
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080'"]
+      interval: 10s     # checa a cada 10s
+      timeout: 3s       # cada check tem até 3s
+      retries: 5        # 5 falhas seguidas = unhealthy
+      start_period: 45s # carência inicial: falhas aqui não contam (app subindo)
+
+  # ---------------------------------------------------------------------------
+  # SERVIÇO DE CARTÃO (porta 8081)
+  # ---------------------------------------------------------------------------
+  servico-cartao:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        MODULE: backend:servico-cartao
+        PORTA: "8081"
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8081'"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 45s
+
+  # ---------------------------------------------------------------------------
+  # SERVIÇO DE INVESTIMENTOS (porta 8082)
+  # ---------------------------------------------------------------------------
+  servico-investimentos:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        MODULE: backend:servico-investimentos
+        PORTA: "8082"
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8082'"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 45s
+
+  # ---------------------------------------------------------------------------
+  # BFF / ORQUESTRADOR (porta 8083)
+  # ---------------------------------------------------------------------------
+  bff:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        MODULE: backend:bff
+        PORTA: "8083"
+    ports:
+      - "8083:8083"                 # o frontend (npm run dev) fala com localhost:8083
+    # Aqui está a mágica das URLs: dentro da rede do Compose, o BFF acha os serviços
+    # pelo NOME (servico-saldo, etc.), não por localhost. Estas variáveis sobrescrevem
+    # os padrões do application.yml (relaxed binding: SERVICOS_SALDO -> servicos.saldo).
+    environment:
+      SERVICOS_SALDO: http://servico-saldo:8080
+      SERVICOS_CARTAO: http://servico-cartao:8081
+      SERVICOS_INVESTIMENTOS: http://servico-investimentos:8082
+    # depends_on com service_healthy: o BFF só INICIA depois que os 3 serviços de baixo
+    # passarem no healthcheck. Evita o BFF tentar chamar serviço que ainda não subiu.
+    depends_on:
+      servico-saldo:
+        condition: service_healthy
+      servico-cartao:
+        condition: service_healthy
+      servico-investimentos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8083'"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 45s

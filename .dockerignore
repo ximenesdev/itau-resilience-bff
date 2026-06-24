@@ -1,0 +1,29 @@
+# =============================================================================
+# .dockerignore — o que NÃO entra no "pacote" (contexto) enviado ao Docker.
+# =============================================================================
+# Analogia: é a lista de coisas que você NÃO leva na mala. Quanto menor a mala,
+# mais rápido o build começa. Compilamos DENTRO do container, então saídas de
+# build do host e coisas do frontend não precisam ir junto.
+# (O Docker nunca ignora o próprio Dockerfile/.dockerignore.)
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Saídas de build do Gradle (são geradas DENTRO do container)
+**/build
+**/.gradle
+.gradle
+
+# Frontend — NÃO é containerizado nesta fase (roda em dev com npm)
+frontend
+**/node_modules
+
+# Docs e arquivos de IDE que não afetam o build da aplicação
+*.md
+.idea
+.vscode
+
+# Pastas temporárias de screenshots/scratch
+.shot

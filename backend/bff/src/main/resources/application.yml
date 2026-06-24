@@ -6,6 +6,19 @@ server:
   port: 8083
 
 # ==============================================================================
+# URLs DOS SERVIÇOS DE BACKEND
+# ==============================================================================
+# Padrão = localhost, para rodar LOCAL (sem Docker) com .\gradlew.bat bootRun.
+# No Docker Compose, estas chaves são sobrescritas por variáveis de ambiente
+# (SERVICOS_SALDO, SERVICOS_CARTAO, SERVICOS_INVESTIMENTOS) que apontam para os
+# NOMES dos serviços na rede interna (ex.: http://servico-saldo:8080).
+# Lidas em ServicoBackend.java via @Value.
+servicos:
+  saldo: http://localhost:8080
+  cartao: http://localhost:8081
+  investimentos: http://localhost:8082
+
+# ==============================================================================
 # ACTUATOR — Monitoramento em tempo real
 # ==============================================================================
 # O Actuator expõe endpoints HTTP para inspecionar o estado interno da aplicação.

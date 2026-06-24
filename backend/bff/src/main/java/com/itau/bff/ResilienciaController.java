@@ -2,6 +2,7 @@ package com.itau.bff;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,19 +50,26 @@ public class ResilienciaController {
 
     // Mapa "nome do serviço -> endereço base". O BFF é quem conhece as portas.
     // LinkedHashMap mantém a ordem (saldo, cartao, investimentos) na resposta.
-    private static final Map<String, String> ENDERECOS = new LinkedHashMap<>();
-    static {
-        ENDERECOS.put("saldo", "http://localhost:8080");
-        ENDERECOS.put("cartao", "http://localhost:8081");
-        ENDERECOS.put("investimentos", "http://localhost:8082");
-    }
+    // NÃO é mais estático/hardcoded: os endereços vêm da MESMA configuração que o
+    // ServicoBackend usa (servicos.saldo/cartao/investimentos), com PADRÃO localhost.
+    // PORQUÊ: rodando local, é localhost; no Docker Compose, as variáveis de ambiente
+    // (SERVICOS_SALDO etc.) sobrescrevem para os nomes dos serviços na rede interna.
+    // Sem isso, a injeção de falha tentaria falar com localhost DENTRO do container
+    // do BFF (onde não há serviço) e devolveria 502.
+    private final Map<String, String> enderecos = new LinkedHashMap<>();
 
     public ResilienciaController(CircuitBreakerRegistry registry,
                                  EstadoResiliencia estadoResiliencia,
-                                 RestTemplate restTemplate) {
+                                 RestTemplate restTemplate,
+                                 @Value("${servicos.saldo:http://localhost:8080}") String urlSaldo,
+                                 @Value("${servicos.cartao:http://localhost:8081}") String urlCartao,
+                                 @Value("${servicos.investimentos:http://localhost:8082}") String urlInvestimentos) {
         this.registry = registry;
         this.estadoResiliencia = estadoResiliencia;
         this.restTemplate = restTemplate;
+        enderecos.put("saldo", urlSaldo);
+        enderecos.put("cartao", urlCartao);
+        enderecos.put("investimentos", urlInvestimentos);
     }
 
     // ------------------------------------------------------------------------
@@ -69,7 +77,7 @@ public class ResilienciaController {
     // ------------------------------------------------------------------------
     @GetMapping("/resiliencia/circuitos")
     public Map<String, Object> getCircuitos() {
-        List<Map<String, Object>> circuitos = ENDERECOS.keySet().stream()
+        List<Map<String, Object>> circuitos = enderecos.keySet().stream()
             .map(this::montarInfoCircuito)
             .toList();
 
@@ -122,7 +130,7 @@ public class ResilienciaController {
     @GetMapping("/resiliencia/falha/status")
     public Map<String, Object> statusFalhas() {
         Map<String, Object> resultado = new LinkedHashMap<>();
-        for (var entrada : ENDERECOS.entrySet()) {
+        for (var entrada : enderecos.entrySet()) {
             try {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> status = restTemplate.getForObject(
@@ -144,7 +152,7 @@ public class ResilienciaController {
 
     // Garante que só aceitamos serviços conhecidos; senão devolve 400 em vez de NPE.
     private String resolverEndereco(String servico) {
-        String base = ENDERECOS.get(servico);
+        String base = enderecos.get(servico);
         if (base == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
