@@ -438,5 +438,3 @@ confiar (foi assim que achei o bug do retry).
 - Timeout: **2s**. Retry: **2** tentativas, **300ms** de pausa. Lentidão simulada: **5s**.
 - Ordem dos aspectos: `circuitBreaker=1` (externo), `retry=2`, `timeLimiter=3` (interno).
 - 9 testes verdes no BFF. Stack: Java 25, Spring Boot 4.0.6, Resilience4j 2.4.0.
-</content>
-</invoke>
