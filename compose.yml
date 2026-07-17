@@ -8,8 +8,6 @@
 #
 # (Não usamos a chave "version:" — ela é obsoleta no Docker Compose moderno.)
 
-# Bloco reutilizável de configuração de build (cada serviço só troca o MODULE).
-# O &ancora / *referência é um recurso do YAML para não repetir texto.
 services:
 
   # ---------------------------------------------------------------------------
