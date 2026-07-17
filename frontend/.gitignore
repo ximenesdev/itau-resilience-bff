@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Configurações locais de ferramentas de desenvolvimento
+.claude/
+.agents/
+skills-lock.json
