@@ -1,16 +1,75 @@
-# React + Vite
+# Frontend — Itaú Resilience Ops
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Painel de operações (SPA React) do projeto **itau-resilience-bff**. Mostra, em tempo
+real, como um Super App bancário permanece parcialmente funcional quando um serviço de
+backend falha — com o **Circuit Breaker** como protagonista.
 
-Currently, two official plugins are available:
+> Este é o módulo de frontend. Para a visão completa da arquitetura (BFF, serviços
+> backend, padrões de resiliência e Docker), veja o [README na raiz](../README.md).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+| Camada     | Tecnologia       |
+| ---------- | ---------------- |
+| UI         | React 19         |
+| Build/Dev  | Vite 8           |
+| Rotas      | React Router 7   |
+| HTTP       | Axios            |
+| Animações  | Framer Motion    |
+| Lint       | ESLint 10        |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Pré-requisitos
 
-## Expanding the ESLint configuration
+- **Node.js 20.19+ ou 22.12+** (requisito do Vite 8) e npm
+- O **BFF** rodando em `http://localhost:8083`. Em modo dev o Vite faz proxy das
+  chamadas de API para ele (veja `vite.config.js`). Sem o BFF no ar, as telas abrem,
+  mas os dados vêm vazios ou em estado de erro.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Como rodar (desenvolvimento)
+
+```bash
+npm install
+npm run dev
+```
+
+Abre em `http://localhost:5173`. As chamadas para `/dashboard`, `/resiliencia/*` e
+`/actuator` são encaminhadas ao BFF na porta 8083.
+
+## Scripts
+
+| Comando           | O que faz                             |
+| ----------------- | ------------------------------------- |
+| `npm run dev`     | Servidor de desenvolvimento (com HMR) |
+| `npm run build`   | Build de produção em `dist/`          |
+| `npm run preview` | Serve o build de produção localmente  |
+| `npm run lint`    | Roda o ESLint                         |
+
+## Rotas
+
+| Rota           | Tela        | Papel                                                          |
+| -------------- | ----------- | -------------------------------------------------------------- |
+| `/`            | Painel      | Visão geral: saldo, cartão e investimentos agregados pelo BFF  |
+| `/resiliencia` | Resiliência | Estado dos Circuit Breakers e injeção de falha ao vivo         |
+| `/extrato`     | Extrato     | Lançamentos da conta (dados mockados em `src/data.js`)         |
+| `/sobre`       | Sobre       | Contexto do projeto e da arquitetura                           |
+
+## Estrutura
+
+```
+src/
+├── main.jsx                    # Ponto de entrada (React + Router)
+├── App.jsx                     # Shell: navegação, rotas e layout
+├── data.js                     # Transações mockadas do Extrato
+├── components/
+│   ├── CountUp.jsx             # Animação de contagem de números
+│   └── DiagramaArquitetura.jsx # Diagrama visual da arquitetura
+└── pages/
+    ├── Dashboard.jsx           # Painel
+    ├── Resiliencia.jsx         # Circuit Breakers + injeção de falha
+    ├── Extrato.jsx             # Extrato
+    └── Sobre.jsx               # Sobre o projeto
+```
+
+---
+
+Projeto educacional de portfólio, sem afiliação com o Itaú Unibanco S.A.
