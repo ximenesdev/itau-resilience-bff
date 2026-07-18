@@ -184,14 +184,13 @@ O app abre em `http://localhost:5173` e conversa com o BFF em `localhost:8083`.
 ├── docker/Dockerfile            # Dockerfile multi-stage reutilizável
 ├── compose.yml                  # Orquestração dos 4 serviços backend
 ├── build.gradle · settings.gradle   # Build Gradle multi-módulo
-├── docs/COMO-RODAR-DOCKER.md    # Guia Docker passo a passo
-├── ROTEIRO-DEMONSTRACAO.md      # Roteiro de demonstração ao vivo
+├── docs/                        # Guias: Docker e demonstração de resiliência
 └── PERGUNTAS-ENTREVISTA.md      # Perguntas e respostas técnicas de entrevista
 ```
 
 ## 📚 Documentação
 - [`docs/COMO-RODAR-DOCKER.md`](docs/COMO-RODAR-DOCKER.md) — subir tudo com Docker Compose
-- [`ROTEIRO-DEMONSTRACAO.md`](ROTEIRO-DEMONSTRACAO.md) — roteiro da demo ao vivo
+- [`docs/DEMO.md`](docs/DEMO.md) — reproduzir a demonstração de resiliência ao vivo
 - [`PERGUNTAS-ENTREVISTA.md`](PERGUNTAS-ENTREVISTA.md) — decisões técnicas em profundidade
 - [`frontend/README.md`](frontend/README.md) — detalhes do módulo de frontend
 
