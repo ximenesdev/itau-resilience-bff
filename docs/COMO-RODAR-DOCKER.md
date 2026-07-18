@@ -9,22 +9,23 @@ containers, com **um único comando**, sem precisar abrir vários terminais.
 ---
 
 ## Pré-requisitos
-- **Docker Desktop** instalado e **rodando** (Windows + WSL2). Verifique com:
-  ```powershell
+- **Docker** e **Docker Compose** instalados e **rodando** (no Windows, o Docker
+  Desktop com WSL2). Verifique com:
+  ```bash
   docker version
   docker compose version
   ```
 
 ## ⚠️ Antes de subir: libere as portas 8080–8083
-Se você estiver rodando os serviços localmente (pelo `.\gradlew.bat` ou pelo IntelliJ),
-**pare todos eles primeiro**. O Compose mapeia as portas `8080`, `8081`, `8082` e `8083`
+Se você estiver rodando os serviços localmente (pelo `./gradlew` — no Windows,
+`gradlew.bat` — ou pelo IntelliJ), **pare todos eles primeiro**. O Compose mapeia as portas `8080`, `8081`, `8082` e `8083`
 para o host; se já houver algo nelas, o Docker acusa "port is already allocated".
 
 ---
 
 ## Subir tudo
 Na **raiz do projeto**:
-```powershell
+```bash
 docker compose up --build
 ```
 - `--build` força (re)construir as imagens. Use sempre que mudar código.
@@ -34,13 +35,13 @@ docker compose up --build
   inicia depois que os três estão saudáveis** (`depends_on: service_healthy`).
 
 Para rodar em segundo plano (libera o terminal):
-```powershell
+```bash
 docker compose up --build -d
 docker compose logs -f bff   # acompanha os logs do BFF
 ```
 
 ## Testar
-```powershell
+```bash
 # Dados agregados pelo BFF (deve responder com saldo, cartão e investimentos)
 curl http://localhost:8083/dashboard
 
@@ -50,7 +51,7 @@ curl http://localhost:8083/resiliencia/circuitos
 
 ## Rodar o frontend apontando para o BFF containerizado
 Em outro terminal:
-```powershell
+```bash
 cd frontend
 npm run dev
 ```
@@ -60,7 +61,7 @@ já encaminha as chamadas de API para `localhost:8083` — que agora é o **BFF 
 ## Demonstrar a resiliência (Circuit Breaker entre containers)
 Na página **Resiliência** do frontend, injete uma falha (Erro 500 ou Lentidão) num serviço
 e clique em **Atualizar** no Painel. Ou via terminal:
-```powershell
+```bash
 # Injeta erro no serviço de cartão (passando pelo BFF)
 curl -X POST "http://localhost:8083/resiliencia/falha/cartao/ativar?modo=erro"
 # Volta ao normal
@@ -71,7 +72,7 @@ funcionavam local — porque o BFF agora acha os serviços pelos nomes da rede i
 (`http://servico-saldo:8080`, etc.), graças às variáveis de ambiente do `compose.yml`.
 
 ## Parar
-```powershell
+```bash
 docker compose down          # para e remove os containers
 docker compose down --rmi local   # também remove as imagens construídas
 ```
@@ -89,5 +90,6 @@ docker compose down --rmi local   # também remove as imagens construídas
   sobrescrevem para os nomes dos serviços na rede interna.
 
 ## O modo local (sem Docker) continua igual
-Nada mudou para rodar sem Docker: cada serviço ainda sobe com `.\gradlew.bat` /
-`bootRun` apontando para `localhost`. A containerização é uma camada a mais, opcional.
+Nada mudou para rodar sem Docker: cada serviço ainda sobe com `./gradlew ... bootRun`
+(no Windows, `gradlew.bat`) apontando para `localhost`. A containerização é uma camada
+a mais, opcional.

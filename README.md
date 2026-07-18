@@ -144,7 +144,7 @@ cd frontend
 npm install
 npm run dev
 ```
-Detalhes e troubleshooting em [`COMO-RODAR-DOCKER.md`](COMO-RODAR-DOCKER.md).
+Detalhes e troubleshooting em [`docs/COMO-RODAR-DOCKER.md`](docs/COMO-RODAR-DOCKER.md).
 
 ### Opção B — Local (sem Docker)
 Um terminal para cada serviço backend (Linux/macOS; no Windows use `gradlew.bat`):
@@ -184,13 +184,13 @@ O app abre em `http://localhost:5173` e conversa com o BFF em `localhost:8083`.
 ├── docker/Dockerfile            # Dockerfile multi-stage reutilizável
 ├── compose.yml                  # Orquestração dos 4 serviços backend
 ├── build.gradle · settings.gradle   # Build Gradle multi-módulo
-├── COMO-RODAR-DOCKER.md         # Guia Docker passo a passo
+├── docs/COMO-RODAR-DOCKER.md    # Guia Docker passo a passo
 ├── ROTEIRO-DEMONSTRACAO.md      # Roteiro de demonstração ao vivo
 └── PERGUNTAS-ENTREVISTA.md      # Perguntas e respostas técnicas de entrevista
 ```
 
 ## 📚 Documentação
-- [`COMO-RODAR-DOCKER.md`](COMO-RODAR-DOCKER.md) — subir tudo com Docker Compose
+- [`docs/COMO-RODAR-DOCKER.md`](docs/COMO-RODAR-DOCKER.md) — subir tudo com Docker Compose
 - [`ROTEIRO-DEMONSTRACAO.md`](ROTEIRO-DEMONSTRACAO.md) — roteiro da demo ao vivo
 - [`PERGUNTAS-ENTREVISTA.md`](PERGUNTAS-ENTREVISTA.md) — decisões técnicas em profundidade
 - [`frontend/README.md`](frontend/README.md) — detalhes do módulo de frontend
