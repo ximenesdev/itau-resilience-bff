@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 @RestController
@@ -30,9 +32,21 @@ public class CartaoController {
             "titular", "Bruno Ximenes",
             "fatura_atual", 2387.50,
             "limite", 15000.00,
-            "vencimento", "15/07/2025",
+            "vencimento", proximoVencimento(),
             "status", "ok"
         );
+    }
+
+    // Vencimento dinâmico: o cartão vence todo dia 15. Retorna o PRÓXIMO dia 15
+    // (deste mês se ainda não passou; senão, do mês seguinte) — assim a fatura
+    // nunca aparece com data vencida na demonstração.
+    private static String proximoVencimento() {
+        final int diaVencimento = 15;
+        LocalDate hoje = LocalDate.now();
+        LocalDate venc = hoje.getDayOfMonth() <= diaVencimento
+                ? hoje.withDayOfMonth(diaVencimento)
+                : hoje.plusMonths(1).withDayOfMonth(diaVencimento);
+        return venc.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
     }
 
     // ------------------------------------------------------------------------
