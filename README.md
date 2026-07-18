@@ -5,6 +5,7 @@ continua **parcialmente funcional** quando uma dependência falha, em vez de cai
 inteiro. O padrão **BFF (Backend for Frontend)** centraliza a orquestração e a
 resiliência (**Circuit Breaker + Retry + Timeout**, via Resilience4j) num só lugar.
 
+[![CI](https://github.com/ximenesdev/itau-resilience-bff/actions/workflows/ci.yml/badge.svg)](https://github.com/ximenesdev/itau-resilience-bff/actions/workflows/ci.yml)
 ![Java](https://img.shields.io/badge/Java-25-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-6DB33F)
 ![Resilience4j](https://img.shields.io/badge/Resilience4j-2.4.0-1f6feb)
