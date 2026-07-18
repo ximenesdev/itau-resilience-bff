@@ -122,9 +122,6 @@ Ganhos: o Retry passa a ver a **falha crua** e realmente re-tenta; o disjuntor c
 e cada tentativa tem seu próprio timeout. Há **teste automatizado** provando que o Retry
 refaz a chamada e que o CB registra só 1 falha por requisição.
 
-> A explicação completa (com perguntas de entrevista) está em
-> [`PERGUNTAS-ENTREVISTA.md`](PERGUNTAS-ENTREVISTA.md).
-
 ## 🚀 Quick start
 
 ### Pré-requisitos
@@ -184,14 +181,12 @@ O app abre em `http://localhost:5173` e conversa com o BFF em `localhost:8083`.
 ├── docker/Dockerfile            # Dockerfile multi-stage reutilizável
 ├── compose.yml                  # Orquestração dos 4 serviços backend
 ├── build.gradle · settings.gradle   # Build Gradle multi-módulo
-├── docs/                        # Guias: Docker e demonstração de resiliência
-└── PERGUNTAS-ENTREVISTA.md      # Perguntas e respostas técnicas de entrevista
+└── docs/                        # Guias: Docker e demonstração de resiliência
 ```
 
 ## 📚 Documentação
 - [`docs/COMO-RODAR-DOCKER.md`](docs/COMO-RODAR-DOCKER.md) — subir tudo com Docker Compose
 - [`docs/DEMO.md`](docs/DEMO.md) — reproduzir a demonstração de resiliência ao vivo
-- [`PERGUNTAS-ENTREVISTA.md`](PERGUNTAS-ENTREVISTA.md) — decisões técnicas em profundidade
 - [`frontend/README.md`](frontend/README.md) — detalhes do módulo de frontend
 
 ## ⚖️ Disclaimer
