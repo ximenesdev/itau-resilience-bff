@@ -208,4 +208,34 @@ class CircuitBreakerTest {
         // restabelecendo o tráfego normal automaticamente.
         assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
     }
+
+    // ==========================================================================
+    // RETRY NÃO RE-TENTA EM TIMEOUT (ignoreExceptions)
+    // ==========================================================================
+    // O Retry serve para falhas TRANSITÓRIAS (5xx, conexão recusada). Em TIMEOUT,
+    // re-tentar um serviço lento raramente ajuda e DOBRA a latência percebida
+    // (2 tentativas × 2s + pausa ≈ 4,3s no /dashboard). Por isso o application.yml
+    // tem ignoreExceptions: [TimeoutException] no Retry. Este teste prova que, no
+    // timeout, a chamada NÃO é refeita — em contraste com o teste de "Connection
+    // refused", que tenta 2x.
+    @Test
+    void retryNaoReexecutaChamadaQuandoOcorreTimeout() throws Exception {
+        // Arrange: o serviço demora mais que o timeoutDuration (2s) → o @TimeLimiter
+        // dispara TimeoutException. Como o Retry ignora TimeoutException, não re-tenta.
+        when(restTemplate.getForObject(anyString(), eq(Map.class)))
+            .thenAnswer(invocation -> {
+                Thread.sleep(3000);
+                return Map.of("status", "ok");
+            });
+
+        // Act
+        Map<String, Object> resultado = servicoBackend.buscarSaldo().get();
+
+        // Assert 1: o RestTemplate foi chamado UMA ÚNICA vez — o Retry não re-tentou
+        // no timeout (se re-tentasse, seriam 2 chamadas, como no cenário de falha crua).
+        verify(restTemplate, times(1)).getForObject(anyString(), eq(Map.class));
+
+        // Assert 2: o fallback continua sendo o de TIMEOUT.
+        assertThat(resultado.get("motivo")).isEqualTo("TIMEOUT");
+    }
 }

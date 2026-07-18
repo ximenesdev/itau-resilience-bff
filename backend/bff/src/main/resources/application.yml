@@ -177,9 +177,22 @@ resilience4j:
         maxAttempts: 2
         # Pausa entre tentativas. Evita bombardear um serviço que está se recuperando.
         waitDuration: 300ms
+        # NÃO re-tentar em TIMEOUT. O Retry existe para falhas TRANSITÓRIAS (erro
+        # 5xx momentâneo, conexão recusada durante um restart). Um TimeoutException
+        # significa serviço LENTO/saturado: re-tentar na hora raramente ajuda (segue
+        # lento) e DOBRA a latência que o usuário sente — cada tentativa paga o
+        # timeout de 2s, então o /dashboard ia de ~2s para ~4,3s (2 tentativas + a
+        # pausa de 300ms). Ignorando o TimeoutException, o timeout vai direto ao
+        # fallback. (Erros 5xx / conexão recusada continuam sendo re-tentados.)
+        ignoreExceptions:
+          - java.util.concurrent.TimeoutException
       cartao:
         maxAttempts: 2
         waitDuration: 300ms
+        ignoreExceptions:
+          - java.util.concurrent.TimeoutException
       investimentos:
         maxAttempts: 2
         waitDuration: 300ms
+        ignoreExceptions:
+          - java.util.concurrent.TimeoutException
