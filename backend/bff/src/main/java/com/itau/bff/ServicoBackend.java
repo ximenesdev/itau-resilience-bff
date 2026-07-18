@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 
 // @Service registra esta classe como bean do Spring.
@@ -27,6 +28,9 @@ public class ServicoBackend {
 
     private final RestTemplate restTemplate;
     private final EstadoResiliencia estadoResiliencia;
+    // Executor dedicado de virtual threads (ver BffApplication) — evita rodar as
+    // chamadas assíncronas no ForkJoinPool.commonPool() compartilhado da JVM.
+    private final ExecutorService executorTarefasBackend;
 
     // URLs BASE de cada serviço de backend. Lidas da configuração com PADRÃO = localhost.
     // PORQUÊ: rodando local (sem Docker), o BFF acha os serviços em localhost:8080/8081/8082.
@@ -44,9 +48,11 @@ public class ServicoBackend {
 
     // Spring injeta o RestTemplate (BffApplication) e o EstadoResiliencia (@Component).
     // O EstadoResiliencia guarda o motivo do último fallback para o painel ler.
-    public ServicoBackend(RestTemplate restTemplate, EstadoResiliencia estadoResiliencia) {
+    public ServicoBackend(RestTemplate restTemplate, EstadoResiliencia estadoResiliencia,
+                          ExecutorService executorTarefasBackend) {
         this.restTemplate = restTemplate;
         this.estadoResiliencia = estadoResiliencia;
+        this.executorTarefasBackend = executorTarefasBackend;
     }
 
     // ==========================================================================
@@ -76,7 +82,7 @@ public class ServicoBackend {
             Map<String, Object> resultado = (Map<String, Object>)
                 restTemplate.getForObject(urlSaldo + "/saldo", Map.class);
             return resultado != null ? resultado : Map.of();
-        });
+        }, executorTarefasBackend);
     }
 
     // Fallback: chamado automaticamente quando buscarSaldo() falha por qualquer motivo.
@@ -106,7 +112,7 @@ public class ServicoBackend {
             Map<String, Object> resultado = (Map<String, Object>)
                 restTemplate.getForObject(urlCartao + "/cartao", Map.class);
             return resultado != null ? resultado : Map.of();
-        });
+        }, executorTarefasBackend);
     }
 
     public CompletableFuture<Map<String, Object>> fallbackCartao(Throwable t) {
@@ -133,7 +139,7 @@ public class ServicoBackend {
             Map<String, Object> resultado = (Map<String, Object>)
                 restTemplate.getForObject(urlInvestimentos + "/investimentos", Map.class);
             return resultado != null ? resultado : Map.of();
-        });
+        }, executorTarefasBackend);
     }
 
     public CompletableFuture<Map<String, Object>> fallbackInvestimentos(Throwable t) {
