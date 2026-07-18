@@ -161,6 +161,16 @@ Sim, retry mal usado amplifica carga (o "retry storm"). Por isso:
   falhas pontuais, não numa queda generalizada. Em produção eu ainda adicionaria
   *backoff exponencial* e *jitter*.
 
+**Q14b. E por que você NÃO re-tenta em `TimeoutException`?**
+Porque re-tentar um serviço **lento** é o pior dos dois mundos: ele provavelmente vai
+continuar lento, e cada tentativa paga o timeout inteiro (2s). Com `maxAttempts: 2` sem
+filtro, o `/dashboard` sob lentidão ia de ~2s para **~4,3s** (2 tentativas × 2s + 300ms de
+pausa) — e ainda joga **mais carga** num serviço já saturado. Retry existe para falhas
+**transitórias** (5xx momentâneo, conexão recusada num restart), não para saturação. Então
+configurei `ignoreExceptions: [TimeoutException]` no Retry: no timeout vou **direto ao
+fallback**; em 5xx/conexão, continuo re-tentando. Tem teste provando que, no timeout, a
+chamada HTTP acontece **uma única vez**.
+
 ---
 
 ## 4. TimeLimiter, chamadas paralelas e CompletableFuture
@@ -176,7 +186,23 @@ como falha (que, aí sim, alimenta o circuit breaker).
 Porque o `@TimeLimiter` precisa **cancelar** uma tarefa que demora demais, e para isso a
 execução tem que ser **assíncrona**. Uso `CompletableFuture.supplyAsync(...)` para rodar a
 chamada HTTP em outra thread. Se fosse síncrono e bloqueante, não daria para interromper a
-espera no prazo.
+espera no prazo. Detalhe importante: passo um **executor dedicado** ao `supplyAsync`, não o
+pool padrão — o porquê está na Q16b.
+
+**Q16b. Quando o TimeLimiter cancela após 2s, o que acontece com a thread que estava fazendo a chamada?**
+Essa é a parte sutil: o `@TimeLimiter` cancela o `CompletableFuture` e dispara o fallback,
+mas **não interrompe** a thread trabalhadora — o `CompletableFuture` não consegue interromper
+a thread de um `supplyAsync`. Ela fica **presa no I/O** do `RestTemplate` até o serviço lento
+responder. Duas medidas resolvem:
+1. **Executor dedicado de virtual threads** (Java 25: `newVirtualThreadPerTaskExecutor`) em
+   vez do `ForkJoinPool.commonPool()` padrão. O commonPool é **compartilhado** por toda a JVM
+   (parallel streams, etc.); enchê-lo de threads presas contaminaria o resto da aplicação.
+   Com virtual threads, essa "thread órfã" é **barata** (não segura uma thread de plataforma)
+   e fica **isolada** do commonPool.
+2. **Timeouts no `RestTemplate`** (`connectTimeout` 2s, `readTimeout` 4s) — dão o **teto
+   absoluto**: mesmo que o downstream nunca responda, a thread é liberada. Deixei o
+   `readTimeout` (4s) **acima** do TimeLimiter (2s) de propósito, para o TimeLimiter disparar
+   primeiro e o motivo do fallback continuar sendo **TIMEOUT** (não SERVICO_FORA).
 
 **Q17. Você diz que as 3 chamadas são "em paralelo". Como?**
 No `BffController`, eu chamo os 3 métodos (`buscarSaldo`, `buscarCartao`,
@@ -273,15 +299,15 @@ existiria.
 ## 8. Testes
 
 **Q28. O que seus testes cobrem?**
-9 testes no BFF, em 3 níveis:
+10 testes no BFF, em 3 níveis:
 - **`BffApplicationTests`** — *smoke test*: o contexto Spring sobe (prova que toda a config
   do Resilience4j/Actuator/AspectJ está correta).
 - **`BffControllerTest`** — testes **puros com Mockito** (sem Spring): a lógica de montar o
   JSON do `/dashboard` (operacional vs degradado). Rápidos (milissegundos).
 - **`CircuitBreakerTest`** — testes de **integração com `@SpringBootTest`**, que sobem os
   proxies AOP de verdade: fallback por SERVICO_FORA, abertura do circuito após 5 falhas,
-  **prova da ordem dos aspectos** (2 HTTP + 1 falha no CB), **TIMEOUT** e o ciclo
-  **OPEN→HALF_OPEN→CLOSED**.
+  **prova da ordem dos aspectos** (2 HTTP + 1 falha no CB), **TIMEOUT**, **prova de que o
+  Retry não re-tenta em timeout** (1 única chamada HTTP) e o ciclo **OPEN→HALF_OPEN→CLOSED**.
 
 **Q29. Por que dois estilos (Mockito puro vs `@SpringBootTest`)?**
 Cada um testa uma coisa. O Mockito puro testa a **lógica do controller** sem o peso de subir
@@ -437,4 +463,4 @@ confiar (foi assim que achei o bug do retry).
 - CB: janela **10**, mínimo **5**, limiar **50%**, aberto por **10s**, **3** chamadas no HALF_OPEN.
 - Timeout: **2s**. Retry: **2** tentativas, **300ms** de pausa. Lentidão simulada: **5s**.
 - Ordem dos aspectos: `circuitBreaker=1` (externo), `retry=2`, `timeLimiter=3` (interno).
-- 9 testes verdes no BFF. Stack: Java 25, Spring Boot 4.0.6, Resilience4j 2.4.0.
+- 10 testes verdes no BFF. Stack: Java 25, Spring Boot 4.0.6, Resilience4j 2.4.0.
