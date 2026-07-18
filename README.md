@@ -35,6 +35,14 @@ resiliência (**Circuit Breaker + Retry + Timeout**, via Resilience4j) num só l
 
 ## 🎯 Visão geral
 
+![Painel do cliente com o serviço de saldo isolado em contingência, enquanto cartão e investimentos seguem normais](docs/img/dashboard.png)
+
+*Painel do cliente — o serviço de saldo caiu e o disjuntor o **isolou**: aquele card exibe dados de contingência, enquanto cartão e investimentos seguem normais (2/3 serviços operacionais). É a degradação graciosa na prática.*
+
+![Console de resiliência com o circuit breaker do saldo em OPEN (vermelho) e os demais em CLOSED](docs/img/resiliencia.png)
+
+*Console de resiliência — o circuit breaker do saldo em `OPEN` (isolado) e os demais em `CLOSED`, com injeção de falha controlada e o estado dos circuitos atualizando em tempo real.*
+
 O frontend consome **um único endpoint** do BFF (`/dashboard`), que por baixo chama
 **três serviços de domínio** (saldo, cartão e investimentos) em paralelo. Cada chamada
 é protegida por Circuit Breaker, Retry e Timeout. Se um serviço cai ou fica lento, o
